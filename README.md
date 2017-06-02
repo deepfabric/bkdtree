@@ -1,4 +1,4 @@
-# elasticell
+# BKD tree
 BKD tree in go.
 Refers to
 - O. Procopiuc, P.K. Agarwal, L. Arge, J.S. Vitter. Bkd-tree: A Dynamic Scalable kd-Tree. Proceedings of SSTD 2003.
