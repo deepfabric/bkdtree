@@ -13,4 +13,5 @@ This document defines the roadmap for BKD tree development.
 - [ ] insert 
 - [ ] earse
 - [ ] window_query
+- [ ] background compact
  
