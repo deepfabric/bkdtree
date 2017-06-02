@@ -49,21 +49,31 @@ func NewPointBase(vals []int, docId uint64) PointBase {
 }
 
 type kdTreeNode struct {
-	axis           int
-	splittingPoint Point
-	leftChild      *kdTreeNode
-	rightChild     *kdTreeNode
+	isLeaf bool
+}
+
+type kdTreeIntraNode struct {
+	kdTreeNode
+	splitDim		int
+	splitValues		[]uint64
+	children		[]*kdTreeNode
+}
+
+type kdTreeLeafNode struct {
+	kdTreeNode
+	points []Point
 }
 
 type KDTree struct {
 	root *kdTreeNode
-	dim  int
+	numDims  int
 }
 
 func (t *KDTree) Dim() int {
 	return t.dim
 }
 
+//TODO
 func (t *KDTree) KNN(target Point, k int) []Point {
 	hp := &kNNHeapHelper{}
 	t.search(t.root, hp, target, k)
