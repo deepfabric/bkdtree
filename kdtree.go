@@ -1,220 +1,144 @@
 package bkdtree
 
 import (
-	"container/heap"
+	"sort"
 )
 
-type Point interface {
-	// Return the total number of dimensions
-	Dim() int
-	// Return the value X_{dim}, dim is started from 0
-	GetValue(dim int) (uint64, error)
-	GetUserData() (uint64, error)
+const (
+	MaxDims       int = 8
+	PagenumSplits int = 4096
+)
+
+type U64Slice []uint64
+
+func (a U64Slice) Len() int           { return len(a) }
+func (a U64Slice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a U64Slice) Less(i, j int) bool { return a[i] < a[j] }
+
+type KdTreeNode interface {
+	visit(visitor IntersectVisitor, numDims int)
 }
 
-//TODO: IMPL
-func (p *Point) Serialize() ([]byte bytes, err error) {
-
+type KdTreeIntraNode struct {
+	KdTreeNode
+	splitDim    int
+	splitValues []uint64
+	children    []KdTreeNode
 }
 
-//TODO: IMPL
-func (p *Point) Parse([]byte types) error {
-
-}
-
-type PointBase struct {
-	Point
-	Vec []int
-	DocId uint64
-}
-
-func (b PointBase) Dim() int {
-	return len(b.Vec)
-}
-
-func (b PointBase) GetValue(dim int) (val uint64, err error) {
-	return b.Vec[dim].uint64, nil
-}
-
-func (b PointBase) GetUserData() (userData uint64, err error) {
-	return b.userData, nil
-}
-
-func NewPointBase(vals []int, docId uint64) PointBase {
-	ret := PointBase{}
-	for _, val := range vals {
-		ret.Vec = append(ret.Vec, val)
-	}
-	return ret
-}
-
-type kdTreeNode struct {
-	isLeaf bool
-}
-
-type kdTreeIntraNode struct {
-	kdTreeNode
-	splitDim		int
-	splitValues		[]uint64
-	children		[]*kdTreeNode
-}
-
-type kdTreeLeafNode struct {
-	kdTreeNode
+type KdTreeLeafNode struct {
+	KdTreeNode
 	points []Point
 }
+
+type IntersectVisitor interface {
+	GetLowPoint() Point
+	GetHighPoint() Point
+	VisitPoint(point Point)
+}
+
+type IntersectCollector struct {
+	lowPoint  Point
+	highPoint Point
+	points    []Point
+}
+
+func (d IntersectCollector) GetLowPoint() Point     { return d.lowPoint }
+func (d IntersectCollector) GetHighPoint() Point    { return d.highPoint }
+func (d IntersectCollector) VisitPoint(point Point) { d.points = append(d.points, point) }
 
 type KDTree struct {
-	root *kdTreeNode
-	numDims  int
+	root    KdTreeNode
+	NumDims int
 }
 
-func (t *KDTree) Dim() int {
-	return t.dim
-}
-
-//TODO
-func (t *KDTree) KNN(target Point, k int) []Point {
-	hp := &kNNHeapHelper{}
-	t.search(t.root, hp, target, k)
-	ret := make([]Point, 0, hp.Len())
-	for hp.Len() > 0 {
-		item := heap.Pop(hp).(*kNNHeapNode)
-		ret = append(ret, item.point)
-	}
-	for i := len(ret)/2 - 1; i >= 0; i-- {
-		opp := len(ret) - 1 - i
-		ret[i], ret[opp] = ret[opp], ret[i]
-	}
-	return ret
-}
-
-func (t *KDTree) search(p *kdTreeNode,
-	hp *kNNHeapHelper, target Point, k int) {
-	stk := make([]*kdTreeNode, 0)
-	for p != nil {
-		stk = append(stk, p)
-		if target.GetValue(p.axis) < p.splittingPoint.GetValue(p.axis) {
-			p = p.leftChild
-		} else {
-			p = p.rightChild
-		}
-	}
-	for i := len(stk) - 1; i >= 0; i-- {
-		cur := stk[i]
-		dist := target.Distance(cur.splittingPoint)
-		if hp.Len() == 0 || (*hp)[0].distance > dist {
-			heap.Push(hp, &kNNHeapNode{
-				point:    cur.splittingPoint,
-				distance: dist,
-			})
-			if hp.Len() > k {
-				heap.Pop(hp)
-			}
-		}
-		if target.PlaneDistance(
-			cur.splittingPoint.GetValue(cur.axis), cur.axis) <
-			(*hp)[0].distance {
-			if target.GetValue(cur.axis) < cur.splittingPoint.GetValue(cur.axis) {
-				t.search(cur.rightChild, hp, target, k)
-			} else {
-				t.search(cur.leftChild, hp, target, k)
-			}
-		}
-	}
-}
-
-func NewKDTree(points []Point) *KDTree {
-	if len(points) == 0 {
+func NewKDTree(points []Point, numDims int) *KDTree {
+	if len(points) == 0 || numDims <= 0 || numDims > MaxDims {
 		return nil
 	}
+	pointnumSplits := numDims * 8
+	leafCap := PagenumSplits / pointnumSplits //how many points can be stored in one leaf node
+	intraCap := (PagenumSplits - 8) / 16      //how many children can be stored in one intra node
+
 	ret := &KDTree{
-		dim:  points[0].Dim(),
-		root: createKDTree(points, 0),
+		NumDims: numDims,
+		root:    createKDTree(points, 0, numDims, leafCap, intraCap),
 	}
 	return ret
 }
 
-func createKDTree(points []Point, depth int) *kdTreeNode {
+func createKDTree(points []Point, depth int, numDims int, leafCap int, intraCap int) KdTreeNode {
 	if len(points) == 0 {
 		return nil
 	}
-	dim := points[0].Dim()
-	ret := &kdTreeNode{
-		axis: depth % dim,
-	}
-	if len(points) == 1 {
-		ret.splittingPoint = points[0]
+	if len(points) <= leafCap {
+		pointsCopy := make([]Point, len(points))
+		copy(pointsCopy, points)
+		ret := KdTreeLeafNode{
+			points: pointsCopy,
+		}
 		return ret
 	}
-	idx := selectSplittingPoint(points, ret.axis)
-	if idx == -1 {
-		return nil
+
+	splitDim := depth % numDims
+	numStrips := (len(points) + leafCap - 1) / leafCap
+	if numStrips > intraCap {
+		numStrips = intraCap
 	}
-	ret.splittingPoint = points[idx]
-	ret.leftChild = createKDTree(points[0:idx], depth+1)
-	ret.rightChild = createKDTree(points[idx+1:len(points)], depth+1)
+
+	splitValues, splitPoses := SplitPoints(points, splitDim, numStrips)
+
+	children := make([]KdTreeNode, 0)
+	for strip := 0; strip < numStrips; strip++ {
+		posBegin := 0
+		if strip != 0 {
+			posBegin = splitPoses[strip-1]
+		}
+		posEnd := len(points)
+		if strip != numStrips-1 {
+			posEnd = splitPoses[strip]
+		}
+		child := createKDTree(points[posBegin:posEnd], depth+1, numDims, leafCap, intraCap)
+		children = append(children, child)
+	}
+	ret := KdTreeIntraNode{
+		splitDim:    splitDim,
+		splitValues: splitValues,
+		children:    children,
+	}
 	return ret
 }
 
-type selectionHelper struct {
-	axis   int
-	points []Point
-}
-
-func (h *selectionHelper) Len() int {
-	return len(h.points)
-}
-
-func (h *selectionHelper) Less(i, j int) bool {
-	return h.points[i].GetValue(h.axis) < h.points[j].GetValue(h.axis)
-}
-
-func (h *selectionHelper) Swap(i, j int) {
-	h.points[i], h.points[j] = h.points[j], h.points[i]
-}
-
-func selectSplittingPoint(points []Point, axis int) int {
-	helper := &selectionHelper{
-		axis:   axis,
-		points: points,
+func (n KdTreeIntraNode) visit(visitor IntersectVisitor, numDims int) {
+	lowVal := visitor.GetLowPoint().GetValue(n.splitDim)
+	highVal := visitor.GetHighPoint().GetValue(n.splitDim)
+	numSplits := len(n.splitValues)
+	//calculate children[begin:end) need to visit
+	end := sort.Search(numSplits, func(i int) bool { return n.splitValues[i] > highVal })
+	begin := sort.Search(end, func(i int) bool { return n.splitValues[i] >= lowVal })
+	end++
+	for strip := begin; strip < end; strip++ {
+		n.children[strip].visit(visitor, numDims)
 	}
-	mid := len(points)/2 + 1
-	err := algo.QuickSelect(helper, mid)
-	if err != nil {
-		return -1
+}
+
+func (n KdTreeLeafNode) visit(visitor IntersectVisitor, numDims int) {
+	lowPoint := visitor.GetLowPoint()
+	highPoint := visitor.GetHighPoint()
+	for _, point := range n.points {
+		isMatch := true
+		for dim := 0; dim < numDims; dim++ {
+			if point.GetValue(dim) < lowPoint.GetValue(dim) || point.GetValue(dim) > highPoint.GetValue(dim) {
+				isMatch = false
+				break
+			}
+		}
+		if isMatch {
+			visitor.VisitPoint(point)
+		}
 	}
-	return mid - 1
 }
 
-type kNNHeapNode struct {
-	point    Point
-	distance float64
-}
-
-type kNNHeapHelper []*kNNHeapNode
-
-func (h kNNHeapHelper) Len() int {
-	return len(h)
-}
-
-func (h kNNHeapHelper) Less(i, j int) bool {
-	return h[i].distance > h[j].distance
-}
-
-func (h kNNHeapHelper) Swap(i, j int) {
-	h[i], h[j] = h[j], h[i]
-}
-
-func (h *kNNHeapHelper) Push(x interface{}) {
-	item := x.(*kNNHeapNode)
-	*h = append(*h, item)
-}
-
-func (h *kNNHeapHelper) Pop() interface{} {
-	old := *h
-	n := len(old)
-	item := old[n-1]
-	*h = old[0 : n-1]
-	return item
+func (t *KDTree) Intersect(visitor IntersectVisitor) {
+	t.root.visit(visitor, t.NumDims)
 }
