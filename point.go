@@ -74,3 +74,14 @@ func IsInside(point, lowPoint, highPoint Point, numDims int) (isInside bool) {
 	}
 	return
 }
+
+func Equals(lhs, rhs Point, numDims int) (isEqual bool) {
+	isEqual = true
+	for dim := 0; dim < numDims; dim++ {
+		if lhs.GetValue(dim) != rhs.GetValue(dim) {
+			isEqual = false
+			return
+		}
+	}
+	return
+}

@@ -1,6 +1,7 @@
 package bkdtree
 
 import (
+	"math/rand"
 	"sort"
 )
 
@@ -17,6 +18,8 @@ func (a U64Slice) Less(i, j int) bool { return a[i] < a[j] }
 
 type KdTreeNode interface {
 	visit(visitor IntersectVisitor, numDims int)
+	insert(point Point, numDims int)
+	erase(point Point, numDims int) bool
 }
 
 type KdTreeIntraNode struct {
@@ -133,4 +136,65 @@ func (n *KdTreeLeafNode) visit(visitor IntersectVisitor, numDims int) {
 
 func (t *KDTree) Intersect(visitor IntersectVisitor) {
 	t.root.visit(visitor, t.NumDims)
+}
+
+func (n *KdTreeIntraNode) insert(point Point, numDims int) {
+	lowVal := point.GetValue(n.splitDim)
+	highVal := lowVal
+	numSplits := len(n.splitValues)
+	//calculate children[begin:end) need to visit
+	end := sort.Search(numSplits, func(i int) bool { return n.splitValues[i] > highVal })
+	begin := sort.Search(end, func(i int) bool { return n.splitValues[i] >= lowVal })
+	end++
+	//if multiple strips could cover the point, select one randomly.
+	strip := begin + rand.Intn(end-begin)
+	n.children[strip].insert(point, numDims)
+}
+
+func (n *KdTreeLeafNode) insert(point Point, numDims int) {
+	//append blindly, no rebalance
+	n.points = append(n.points, point)
+}
+
+func (t *KDTree) Insert(point Point) {
+	t.root.insert(point, t.NumDims)
+}
+
+func (n *KdTreeIntraNode) erase(point Point, numDims int) (found bool) {
+	lowVal := point.GetValue(n.splitDim)
+	highVal := lowVal
+	numSplits := len(n.splitValues)
+	//calculate children[begin:end) need to visit
+	end := sort.Search(numSplits, func(i int) bool { return n.splitValues[i] > highVal })
+	begin := sort.Search(end, func(i int) bool { return n.splitValues[i] >= lowVal })
+	end++
+	//if multiple strips could cover the point, iterate them. And stop iteration if found at middle way.
+	for strip := begin; strip < end; strip++ {
+		found = n.children[strip].erase(point, numDims)
+		if found {
+			break
+		}
+	}
+	return
+}
+
+func (n *KdTreeLeafNode) erase(point Point, numDims int) (found bool) {
+	found = false
+	idx := len(n.points)
+	for i, point2 := range n.points {
+		//assumes each point's userData is unique
+		if Equals(point, point2, numDims) && point.GetUserData() == point2.GetUserData() {
+			idx = i
+			break
+		}
+	}
+	if idx < len(n.points) {
+		n.points = append(n.points[:idx], n.points[idx+1:]...)
+		found = true
+	}
+	return
+}
+
+func (t *KDTree) Erase(point Point) {
+	t.root.erase(point, t.NumDims)
 }

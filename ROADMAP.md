@@ -3,16 +3,16 @@
 This document defines the roadmap for BKD tree development.
 
 #### KD tree
-- [ ] KD tree in memory
-- [ ] KD tree in file
-- [ ] insert
-- [ ] erase
-- [ ] window_query
+- [D] intersect - Kdtree in mem
+- [D] insert - Kdtree in mem
+- [D] erase - Kdtree in mem
+- [ ] KdWriter - persist slice or Kdtree to file
+- [ ] KdReader - intersect
 - [ ] rebuild
 
 ##### BKD tree
+- [ ] intersect
 - [ ] insert 
 - [ ] earse
-- [ ] window_query
 - [ ] background compact
  
