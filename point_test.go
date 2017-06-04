@@ -81,3 +81,42 @@ func TestSplitPoints(t *testing.T) {
 		}
 	}
 }
+
+type CaseInside struct {
+	point, lowPoint, highPoint Point
+	numDims                    int
+	isInside                   bool
+}
+
+func TestIsInside(t *testing.T) {
+	cases := []CaseInside{
+		{
+			NewPointBase([]int{30, 80, 40}, 0),
+			NewPointBase([]int{30, 80, 40}, 0),
+			NewPointBase([]int{50, 90, 50}, 0),
+			3,
+			true,
+		},
+		{
+			NewPointBase([]int{30, 79, 40}, 0),
+			NewPointBase([]int{30, 80, 40}, 0),
+			NewPointBase([]int{50, 90, 50}, 0),
+			3,
+			false,
+		},
+		{ //invalid range
+			NewPointBase([]int{30, 80, 40}, 0),
+			NewPointBase([]int{30, 80, 40}, 0),
+			NewPointBase([]int{50, 90, 39}, 0),
+			3,
+			false,
+		},
+	}
+
+	for i, tc := range cases {
+		res := IsInside(tc.point, tc.lowPoint, tc.highPoint, tc.numDims)
+		if res != tc.isInside {
+			t.Errorf("case %v failed\n", i)
+		}
+	}
+}

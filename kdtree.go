@@ -20,14 +20,12 @@ type KdTreeNode interface {
 }
 
 type KdTreeIntraNode struct {
-	KdTreeNode
 	splitDim    int
 	splitValues []uint64
 	children    []KdTreeNode
 }
 
 type KdTreeLeafNode struct {
-	KdTreeNode
 	points []Point
 }
 
@@ -43,9 +41,9 @@ type IntersectCollector struct {
 	points    []Point
 }
 
-func (d IntersectCollector) GetLowPoint() Point     { return d.lowPoint }
-func (d IntersectCollector) GetHighPoint() Point    { return d.highPoint }
-func (d IntersectCollector) VisitPoint(point Point) { d.points = append(d.points, point) }
+func (d *IntersectCollector) GetLowPoint() Point     { return d.lowPoint }
+func (d *IntersectCollector) GetHighPoint() Point    { return d.highPoint }
+func (d *IntersectCollector) VisitPoint(point Point) { d.points = append(d.points, point) }
 
 type KDTree struct {
 	root    KdTreeNode
@@ -74,7 +72,7 @@ func createKDTree(points []Point, depth int, numDims int, leafCap int, intraCap 
 	if len(points) <= leafCap {
 		pointsCopy := make([]Point, len(points))
 		copy(pointsCopy, points)
-		ret := KdTreeLeafNode{
+		ret := &KdTreeLeafNode{
 			points: pointsCopy,
 		}
 		return ret
@@ -101,7 +99,7 @@ func createKDTree(points []Point, depth int, numDims int, leafCap int, intraCap 
 		child := createKDTree(points[posBegin:posEnd], depth+1, numDims, leafCap, intraCap)
 		children = append(children, child)
 	}
-	ret := KdTreeIntraNode{
+	ret := &KdTreeIntraNode{
 		splitDim:    splitDim,
 		splitValues: splitValues,
 		children:    children,
@@ -109,7 +107,7 @@ func createKDTree(points []Point, depth int, numDims int, leafCap int, intraCap 
 	return ret
 }
 
-func (n KdTreeIntraNode) visit(visitor IntersectVisitor, numDims int) {
+func (n *KdTreeIntraNode) visit(visitor IntersectVisitor, numDims int) {
 	lowVal := visitor.GetLowPoint().GetValue(n.splitDim)
 	highVal := visitor.GetHighPoint().GetValue(n.splitDim)
 	numSplits := len(n.splitValues)
@@ -122,18 +120,12 @@ func (n KdTreeIntraNode) visit(visitor IntersectVisitor, numDims int) {
 	}
 }
 
-func (n KdTreeLeafNode) visit(visitor IntersectVisitor, numDims int) {
+func (n *KdTreeLeafNode) visit(visitor IntersectVisitor, numDims int) {
 	lowPoint := visitor.GetLowPoint()
 	highPoint := visitor.GetHighPoint()
 	for _, point := range n.points {
-		isMatch := true
-		for dim := 0; dim < numDims; dim++ {
-			if point.GetValue(dim) < lowPoint.GetValue(dim) || point.GetValue(dim) > highPoint.GetValue(dim) {
-				isMatch = false
-				break
-			}
-		}
-		if isMatch {
+		isInside := IsInside(point, lowPoint, highPoint, numDims)
+		if isInside {
 			visitor.VisitPoint(point)
 		}
 	}

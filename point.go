@@ -63,3 +63,14 @@ func SplitPoints(points []Point, byDim int, numStrips int) (splitValues []uint64
 	}
 	return
 }
+
+func IsInside(point, lowPoint, highPoint Point, numDims int) (isInside bool) {
+	isInside = true
+	for dim := 0; dim < numDims; dim++ {
+		if point.GetValue(dim) < lowPoint.GetValue(dim) || point.GetValue(dim) > highPoint.GetValue(dim) {
+			isInside = false
+			break
+		}
+	}
+	return
+}
