@@ -6,23 +6,22 @@ import (
 )
 
 type PointBase struct {
-	Point
 	Vec   []int
 	DocId uint64
 }
 
-func (b PointBase) GetValue(dim int) (val uint64) {
+func (b *PointBase) GetValue(dim int) (val uint64) {
 	val = uint64(b.Vec[dim])
 	return
 }
 
-func (b PointBase) GetUserData() (userData uint64) {
+func (b *PointBase) GetUserData() (userData uint64) {
 	userData = b.DocId
 	return
 }
 
-func NewPointBase(vals []int, docId uint64) PointBase {
-	ret := PointBase{}
+func NewPointBase(vals []int, docId uint64) *PointBase {
+	ret := &PointBase{}
 	for _, val := range vals {
 		ret.Vec = append(ret.Vec, val)
 	}
