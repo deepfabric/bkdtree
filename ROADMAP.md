@@ -3,6 +3,7 @@
 This document defines the roadmap for BKD tree development.
 
 #### KD tree
+- [D] build - Kdtree in mem
 - [D] intersect - Kdtree in mem
 - [D] insert - Kdtree in mem
 - [D] erase - Kdtree in mem

@@ -13,7 +13,7 @@ func TestKdIntersectSome(t *testing.T) {
 
 	lowPoint := points[0]
 	highPoint := points[0]
-	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
+	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0, 1)}
 	kdt.Intersect(visitor)
 
 	//fmt.Printf("%v\n", visitor.points)
@@ -36,7 +36,7 @@ func TestKdIntersectAll(t *testing.T) {
 
 	lowPoint := NewPointBase([]int{0, 0, 0}, 0)
 	highPoint := NewPointBase([]int{maxVal, maxVal, maxVal}, 0)
-	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
+	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0, size)}
 	kdt.Intersect(visitor)
 	if len(visitor.points) != size {
 		t.Errorf("found %v matchs, however %v expected", len(visitor.points), size)

@@ -31,7 +31,7 @@ func NewPointBase(vals []int, docId uint64) *PointBase {
 
 func NewRandPoints(numDims, maxVal, size int) (points []Point) {
 	for i := 0; i < size; i++ {
-		vals := make([]int, 0)
+		vals := make([]int, 0, numDims)
 		for j := 0; j < numDims; j++ {
 			vals = append(vals, rand.Intn(maxVal))
 		}

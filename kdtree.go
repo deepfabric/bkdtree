@@ -89,7 +89,7 @@ func createKDTree(points []Point, depth int, numDims int, leafCap int, intraCap 
 
 	splitValues, splitPoses := SplitPoints(points, splitDim, numStrips)
 
-	children := make([]KdTreeNode, 0)
+	children := make([]KdTreeNode, 0, numStrips)
 	for strip := 0; strip < numStrips; strip++ {
 		posBegin := 0
 		if strip != 0 {
