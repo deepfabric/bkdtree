@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	MaxDims       int = 8
-	PagenumSplits int = 4096
+	MaxDims   int = 8
+	BlockSize int = 4096
 )
 
 type U64Slice []uint64
@@ -57,9 +57,9 @@ func NewKDTree(points []Point, numDims int) *KDTree {
 	if len(points) == 0 || numDims <= 0 || numDims > MaxDims {
 		return nil
 	}
-	pointnumSplits := numDims * 8
-	leafCap := PagenumSplits / pointnumSplits //how many points can be stored in one leaf node
-	intraCap := (PagenumSplits - 8) / 16      //how many children can be stored in one intra node
+	pointSize := numDims*8 + 8
+	leafCap := BlockSize / pointSize //how many points can be stored in one leaf node
+	intraCap := (BlockSize - 8) / 16 //how many children can be stored in one intra node
 
 	ret := &KDTree{
 		NumDims: numDims,
@@ -68,7 +68,7 @@ func NewKDTree(points []Point, numDims int) *KDTree {
 	return ret
 }
 
-func createKDTree(points []Point, depth int, numDims int, leafCap int, intraCap int) KdTreeNode {
+func createKDTree(points []Point, depth, numDims, leafCap int, intraCap int) KdTreeNode {
 	if len(points) == 0 {
 		return nil
 	}
