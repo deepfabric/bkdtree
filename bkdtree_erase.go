@@ -49,24 +49,15 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 	}
 	defer f.Close()
 
-	f.Seek(-KdTreeExtMetaSize, 2)
-	var meta KdTreeExtMeta
-	binary.Read(f, binary.BigEndian, &meta)
-	if err != nil {
-		return
-	}
-	//TODO: check if meta equals to bkd.trees[idx]
-
 	//depth-first erasing from the root node
-	found, err = bkd.eraseNode(point, f, &meta, -KdTreeExtMetaSize-int64(BlockSize))
+	found, err = bkd.eraseNode(point, f, &bkd.trees[idx], -KdTreeExtMetaSize-int64(BlockSize))
 	if err != nil {
 		return
 	}
 	if found {
-		meta.numPoints--
-		f.Seek(-KdTreeExtMetaSize, 2)
-		binary.Write(f, binary.BigEndian, &meta)
 		bkd.trees[idx].numPoints--
+		f.Seek(-KdTreeExtMetaSize, 2)
+		binary.Write(f, binary.BigEndian, &bkd.trees[idx])
 		return
 	}
 	return

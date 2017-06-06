@@ -15,8 +15,29 @@ type Point interface {
 	GetUserData() uint64
 }
 
+type PointBase struct {
+	Vals  []uint64
+	DocId uint64
+}
+
+func (b *PointBase) GetValue(dim int) (val uint64) {
+	val = b.Vals[dim]
+	return
+}
+
+func (b *PointBase) GetUserData() (userData uint64) {
+	userData = b.DocId
+	return
+}
+
+func NewPointBase(vals []uint64, docId uint64) (pb *PointBase) {
+	pb = &PointBase{Vals: vals, DocId: docId}
+	return
+}
+
 type PointArray interface {
 	sort.Interface
+	GetPoint(idx int) Point
 	GetValue(idx int) uint64
 	SubArray(begin, end int) PointArray
 	Erase(point Point) (bool, error)
@@ -41,6 +62,11 @@ func (s *PointArrayMem) Swap(i, j int) {
 // Less is part of sort.Interface.
 func (s *PointArrayMem) Less(i, j int) bool {
 	return s.points[i].GetValue(s.byDim) < s.points[j].GetValue(s.byDim)
+}
+
+func (s *PointArrayMem) GetPoint(idx int) (point Point) {
+	point = s.points[idx]
+	return
 }
 
 func (s *PointArrayMem) GetValue(idx int) (val uint64) {
@@ -116,6 +142,25 @@ func (s *PointArrayExt) Less(i, j int) bool {
 		}
 	}
 	return true
+}
+
+func (s *PointArrayExt) GetPoint(idx int) (point Point) {
+	pb := &PointBase{Vals: make([]uint64, s.numDims), DocId: 0}
+	point = pb
+	pi := make([]byte, s.pointSize)
+	offI := s.offBegin + int64(idx*s.pointSize)
+	s.f.ReadAt(pi, offI) //TODO: handle error?
+	for dim := 0; dim < s.numDims; dim++ {
+		for i := s.bytesPerDim * dim; i < s.bytesPerDim*(dim+1); i++ {
+			pb.Vals[i] *= 8
+			pb.Vals[i] += uint64(pi[i])
+		}
+	}
+	for i := s.bytesPerDim * s.numDims; i < s.pointSize; i++ {
+		pb.DocId *= 8
+		pb.DocId += uint64(pi[i])
+	}
+	return
 }
 
 func (s *PointArrayExt) GetValue(idx int) (val uint64) {

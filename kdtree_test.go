@@ -6,7 +6,7 @@ import (
 
 func TestKdIntersectSome(t *testing.T) {
 	numDims := 3
-	maxVal := 1000
+	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKDTree(points, numDims)
@@ -29,13 +29,13 @@ func TestKdIntersectSome(t *testing.T) {
 }
 func TestKdIntersectAll(t *testing.T) {
 	numDims := 3
-	maxVal := 1000
+	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKDTree(points, numDims)
 
-	lowPoint := NewPointBase([]int{0, 0, 0}, 0)
-	highPoint := NewPointBase([]int{maxVal, maxVal, maxVal}, 0)
+	lowPoint := NewPointBase([]uint64{0, 0, 0}, 0)
+	highPoint := NewPointBase([]uint64{maxVal, maxVal, maxVal}, 0)
 	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0, size)}
 	kdt.Intersect(visitor)
 	if len(visitor.points) != size {
@@ -45,13 +45,13 @@ func TestKdIntersectAll(t *testing.T) {
 
 func TestKdIntersect(t *testing.T) {
 	numDims := 3
-	maxVal := 1000
+	maxVal := uint64(1000)
 	size := 100000
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKDTree(points, numDims)
 
-	lowPoint := NewPointBase([]int{20, 30, 40}, 0)
-	highPoint := NewPointBase([]int{maxVal, maxVal, maxVal}, 0)
+	lowPoint := NewPointBase([]uint64{20, 30, 40}, 0)
+	highPoint := NewPointBase([]uint64{maxVal, maxVal, maxVal}, 0)
 	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
 	kdt.Intersect(visitor)
 
@@ -66,12 +66,12 @@ func TestKdIntersect(t *testing.T) {
 
 func TestKdInsert(t *testing.T) {
 	numDims := 3
-	maxVal := 1000
+	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKDTree(points, numDims)
 
-	newPoint := NewPointBase([]int{40, 30, 20}, uint64(maxVal)) //use unique userData
+	newPoint := NewPointBase([]uint64{40, 30, 20}, maxVal) //use unique userData
 	kdt.Insert(newPoint)
 
 	lowPoint := newPoint
@@ -100,7 +100,7 @@ func TestKdInsert(t *testing.T) {
 
 func TestKdErase(t *testing.T) {
 	numDims := 3
-	maxVal := 1000
+	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKDTree(points, numDims)

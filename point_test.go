@@ -5,35 +5,11 @@ import (
 	"testing"
 )
 
-type PointBase struct {
-	Vec   []int
-	DocId uint64
-}
-
-func (b *PointBase) GetValue(dim int) (val uint64) {
-	val = uint64(b.Vec[dim])
-	return
-}
-
-func (b *PointBase) GetUserData() (userData uint64) {
-	userData = b.DocId
-	return
-}
-
-func NewPointBase(vals []int, docId uint64) *PointBase {
-	ret := &PointBase{}
-	for _, val := range vals {
-		ret.Vec = append(ret.Vec, val)
-	}
-	ret.DocId = docId
-	return ret
-}
-
-func NewRandPoints(numDims, maxVal, size int) (points []Point) {
+func NewRandPoints(numDims int, maxVal uint64, size int) (points []Point) {
 	for i := 0; i < size; i++ {
-		vals := make([]int, 0, numDims)
+		vals := make([]uint64, 0, numDims)
 		for j := 0; j < numDims; j++ {
-			vals = append(vals, rand.Intn(maxVal))
+			vals = append(vals, rand.Uint64()%maxVal)
 		}
 		point := NewPointBase(vals, uint64(i))
 		points = append(points, point)
@@ -43,7 +19,7 @@ func NewRandPoints(numDims, maxVal, size int) (points []Point) {
 
 func TestSplitPoints(t *testing.T) {
 	numDims := 3
-	maxVal := 100
+	maxVal := uint64(100)
 	size := 1000
 	numStrips := 4
 	points := NewRandPoints(numDims, maxVal, size)
@@ -95,23 +71,23 @@ type CaseInside struct {
 func TestIsInside(t *testing.T) {
 	cases := []CaseInside{
 		{
-			NewPointBase([]int{30, 80, 40}, 0),
-			NewPointBase([]int{30, 80, 40}, 0),
-			NewPointBase([]int{50, 90, 50}, 0),
+			NewPointBase([]uint64{30, 80, 40}, 0),
+			NewPointBase([]uint64{30, 80, 40}, 0),
+			NewPointBase([]uint64{50, 90, 50}, 0),
 			3,
 			true,
 		},
 		{
-			NewPointBase([]int{30, 79, 40}, 0),
-			NewPointBase([]int{30, 80, 40}, 0),
-			NewPointBase([]int{50, 90, 50}, 0),
+			NewPointBase([]uint64{30, 79, 40}, 0),
+			NewPointBase([]uint64{30, 80, 40}, 0),
+			NewPointBase([]uint64{50, 90, 50}, 0),
 			3,
 			false,
 		},
 		{ //invalid range
-			NewPointBase([]int{30, 80, 40}, 0),
-			NewPointBase([]int{30, 80, 40}, 0),
-			NewPointBase([]int{50, 90, 39}, 0),
+			NewPointBase([]uint64{30, 80, 40}, 0),
+			NewPointBase([]uint64{30, 80, 40}, 0),
+			NewPointBase([]uint64{50, 90, 39}, 0),
 			3,
 			false,
 		},

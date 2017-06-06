@@ -17,7 +17,7 @@ func (a U64Slice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a U64Slice) Less(i, j int) bool { return a[i] < a[j] }
 
 type KdTreeNode interface {
-	visit(visitor IntersectVisitor, numDims int)
+	intersect(visitor IntersectVisitor, numDims int)
 	insert(point Point, numDims int)
 	erase(point Point, numDims int) bool
 }
@@ -116,7 +116,7 @@ func createKDTree(points []Point, depth, numDims, leafCap int, intraCap int) KdT
 	return ret
 }
 
-func (n *KdTreeIntraNode) visit(visitor IntersectVisitor, numDims int) {
+func (n *KdTreeIntraNode) intersect(visitor IntersectVisitor, numDims int) {
 	lowVal := visitor.GetLowPoint().GetValue(n.splitDim)
 	highVal := visitor.GetHighPoint().GetValue(n.splitDim)
 	numSplits := len(n.splitValues)
@@ -125,11 +125,11 @@ func (n *KdTreeIntraNode) visit(visitor IntersectVisitor, numDims int) {
 	begin := sort.Search(end, func(i int) bool { return n.splitValues[i] >= lowVal })
 	end++
 	for strip := begin; strip < end; strip++ {
-		n.children[strip].visit(visitor, numDims)
+		n.children[strip].intersect(visitor, numDims)
 	}
 }
 
-func (n *KdTreeLeafNode) visit(visitor IntersectVisitor, numDims int) {
+func (n *KdTreeLeafNode) intersect(visitor IntersectVisitor, numDims int) {
 	lowPoint := visitor.GetLowPoint()
 	highPoint := visitor.GetHighPoint()
 	for _, point := range n.points {
@@ -141,7 +141,7 @@ func (n *KdTreeLeafNode) visit(visitor IntersectVisitor, numDims int) {
 }
 
 func (t *KDTree) Intersect(visitor IntersectVisitor) {
-	t.root.visit(visitor, t.NumDims)
+	t.root.intersect(visitor, t.NumDims)
 }
 
 func (n *KdTreeIntraNode) insert(point Point, numDims int) {
