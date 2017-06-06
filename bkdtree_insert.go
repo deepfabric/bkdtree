@@ -60,14 +60,8 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	if err != nil {
 		return
 	}
-	err = os.Rename(tmpFp, fp) //TODO: what happen if tmpF is open?
-	if err != nil {
-		return
-	}
-	bkd.trees[k] = *meta
 
 	//empty T0M and Ti, 0<=i<k
-	//TODO: remove these files?
 	bkd.t0m = make([]Point, 0, bkd.t0mCap)
 	for i := 0; i <= k; i++ {
 		bkd.trees[i].numPoints = 0
@@ -77,6 +71,11 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 			return
 		}
 	}
+	err = os.Rename(tmpFp, fp) //TODO: what happen if tmpF is open?
+	if err != nil {
+		return
+	}
+	bkd.trees[k] = *meta
 	bkd.numPoints++
 	return
 }
@@ -103,7 +102,7 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 	}
 	defer srcF.Close()
 
-	srcF.Seek(-KdMetaSize, 2)
+	srcF.Seek(-KdTreeExtMetaSize, 2)
 	var meta KdTreeExtMeta
 	binary.Read(srcF, binary.BigEndian, &meta)
 	if err != nil {
@@ -112,7 +111,7 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 	//TODO: check if meta equals to bkd.trees[idx].Meta
 
 	//depth-first extracting from the root node
-	err = bkd.extractNode(dstF, srcF, &meta, -KdMetaSize-int64(BlockSize))
+	err = bkd.extractNode(dstF, srcF, &meta, -KdTreeExtMetaSize-int64(BlockSize))
 	return
 }
 
@@ -164,10 +163,11 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	//record meta info at end: idxBegin, numDims, numPoints
 	_, err = alignBlockSize(tmpF)
 	meta = &KdTreeExtMeta{
-		numDims:     uint32(bkd.numDims),
-		bytesPerDim: uint32(bkd.bytesPerDim),
 		idxBegin:    uint64(idxBegin),
 		numPoints:   uint64(numPoints),
+		numDims:     uint8(bkd.numDims),
+		bytesPerDim: uint8(bkd.bytesPerDim),
+		formatVer:   0,
 	}
 	err = binary.Write(tmpF, binary.BigEndian, meta)
 	if err != nil {

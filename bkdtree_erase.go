@@ -16,14 +16,22 @@ func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 		numDims: bkd.numDims,
 	}
 	found, err = pam.Erase(point)
-	if found || err != nil {
+	if err != nil {
+		return
+	}
+	if found {
+		bkd.numPoints--
 		return
 	}
 
 	//Query each non-empty tree in the forest with p; if found, delete it and return
 	for i := 0; i < len(bkd.trees); i++ {
 		found, err = bkd.eraseTi(point, i)
-		if found || err != nil {
+		if err != nil {
+			return
+		}
+		if found {
+			bkd.numPoints--
 			return
 		}
 	}
@@ -41,16 +49,26 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 	}
 	defer f.Close()
 
-	f.Seek(-KdMetaSize, 2)
+	f.Seek(-KdTreeExtMetaSize, 2)
 	var meta KdTreeExtMeta
 	binary.Read(f, binary.BigEndian, &meta)
 	if err != nil {
 		return
 	}
-	//TODO: check if meta equals to bkd.trees[idx].Meta
+	//TODO: check if meta equals to bkd.trees[idx]
 
 	//depth-first erasing from the root node
-	found, err = bkd.eraseNode(point, f, &meta, -KdMetaSize-int64(BlockSize))
+	found, err = bkd.eraseNode(point, f, &meta, -KdTreeExtMetaSize-int64(BlockSize))
+	if err != nil {
+		return
+	}
+	if found {
+		meta.numPoints--
+		f.Seek(-KdTreeExtMetaSize, 2)
+		binary.Write(f, binary.BigEndian, &meta)
+		bkd.trees[idx].numPoints--
+		return
+	}
 	return
 }
 
@@ -65,7 +83,11 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 	if err != nil {
 		return
 	}
-	for _, child := range node.children {
+	idx := 0
+	for i, child := range node.children {
+		if child.numPoints <= 0 {
+			continue
+		}
 		if child.offset < meta.idxBegin {
 			//leaf node
 			pae := PointArrayExt{
@@ -82,9 +104,21 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 			//intra node
 			found, err = bkd.eraseNode(point, f, meta, int64(child.offset))
 		}
-		if found || err != nil {
+		if err != nil {
 			return
 		}
+		if found {
+			idx = i
+			child.numPoints--
+			break
+		}
+	}
+	if found {
+		_, err = f.Seek(-int64(int(node.numStrips)-idx)*KdTreeExtNodeInfoSize, 1)
+		if err != nil {
+			return
+		}
+		err = binary.Write(f, binary.BigEndian, node.children[idx])
 	}
 	return
 }

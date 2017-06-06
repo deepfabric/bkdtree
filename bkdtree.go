@@ -11,6 +11,8 @@ type KdTreeExtNodeInfo struct {
 	numPoints uint64 //number of points of subtree rooted at this node
 }
 
+const KdTreeExtNodeInfoSize int64 = 8 + 8
+
 type KdTreeExtIntraNode struct {
 	splitDim    uint32
 	numStrips   uint32
@@ -41,14 +43,24 @@ func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
 	return
 }
 
+/**
+ * KdTreeExtMeta is persisted at the end of file.
+ * Attention:
+ * 1. Keep KdTreeExtMeta be 4 bytes aligned.
+ * 2. Keep formatVer one byte, and be the last member.
+ * 3. Keep KdMetaSize be sizeof(KdTreeExtMeta);
+ */
 type KdTreeExtMeta struct {
-	numDims     uint32
-	bytesPerDim uint32
 	idxBegin    uint64
 	numPoints   uint64 //the current number of points. Deleting points could trigger rebuilding the tree.
+	numDims     uint8
+	bytesPerDim uint8
+	unused      uint8
+	formatVer   uint8 //the file format version. shall be the last byte of the file.
 }
 
-var KdMetaSize int64 = 8 * 3
+//KdTreeExtMetaSize is sizeof(KdTreeExtMeta)
+const KdTreeExtMetaSize int64 = 8 + 8 + 4
 
 type BkdTree struct {
 	bkdCap      int // N in the paper. len(trees) shall be no larger than math.log2(bkdCap/t0mCap)
@@ -79,10 +91,11 @@ func NewBkdTree(bkdCap, t0mCap, numDims, bytesPerDim int, dir, prefix string) (b
 	}
 	for i := 0; i < treesCap; i++ {
 		kd := KdTreeExtMeta{
-			numDims:     uint32(bkd.numDims),
-			bytesPerDim: uint32(bkd.bytesPerDim),
 			idxBegin:    0,
 			numPoints:   0,
+			numDims:     uint8(bkd.numDims),
+			bytesPerDim: uint8(bkd.bytesPerDim),
+			formatVer:   0,
 		}
 		bkd.trees = append(bkd.trees, kd)
 	}

@@ -14,5 +14,6 @@ This document defines the roadmap for BKD tree development.
 - [ ] earse
 - [ ] intersect
 - [ ] restore
+- [ ] singel writer, multiple reader
 - [ ] background compact
 - [ ] multiple version of file format
