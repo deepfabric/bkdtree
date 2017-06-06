@@ -48,7 +48,12 @@ func TestSplitPoints(t *testing.T) {
 	numStrips := 4
 	points := NewRandPoints(numDims, maxVal, size)
 	for dim := 0; dim < numDims; dim++ {
-		splitValues, splitPoses := SplitPoints(points, dim, numStrips)
+		pam := PointArrayMem{
+			points:  points,
+			byDim:   dim,
+			numDims: numDims,
+		}
+		splitValues, splitPoses := SplitPoints(&pam, numStrips)
 		//fmt.Printf("points: %v\nsplitValues: %v\nsplitPoses:%v\n", points, splitValues, splitPoses)
 		if len(splitValues) != numStrips-1 || len(splitValues) != len(splitPoses) {
 			t.Errorf("incorrect size of splitValues or splitPoses\n")

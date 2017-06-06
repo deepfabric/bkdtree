@@ -87,7 +87,13 @@ func createKDTree(points []Point, depth, numDims, leafCap int, intraCap int) KdT
 		numStrips = intraCap
 	}
 
-	splitValues, splitPoses := SplitPoints(points, splitDim, numStrips)
+	pam := PointArrayMem{
+		points:  points,
+		byDim:   splitDim,
+		numDims: numDims,
+	}
+
+	splitValues, splitPoses := SplitPoints(&pam, numStrips)
 
 	children := make([]KdTreeNode, 0, numStrips)
 	for strip := 0; strip < numStrips; strip++ {

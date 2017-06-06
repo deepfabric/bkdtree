@@ -1,6 +1,6 @@
 package bkdtree
 
 //Intersect does window query
-func (bkd *BKDTree) Intersect(visitor IntersectVisitor) {
+func (bkd *BkdTree) Intersect(visitor IntersectVisitor) {
 	return
 }
