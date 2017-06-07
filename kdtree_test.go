@@ -9,7 +9,7 @@ func TestKdIntersectSome(t *testing.T) {
 	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
-	kdt := NewKDTree(points, numDims)
+	kdt := NewKdTree(points, numDims, PageSize4K)
 
 	lowPoint := points[0]
 	highPoint := points[0]
@@ -32,7 +32,7 @@ func TestKdIntersectAll(t *testing.T) {
 	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
-	kdt := NewKDTree(points, numDims)
+	kdt := NewKdTree(points, numDims, PageSize4K)
 
 	lowPoint := NewPointBase([]uint64{0, 0, 0}, 0)
 	highPoint := NewPointBase([]uint64{maxVal, maxVal, maxVal}, 0)
@@ -48,7 +48,7 @@ func TestKdIntersect(t *testing.T) {
 	maxVal := uint64(1000)
 	size := 100000
 	points := NewRandPoints(numDims, maxVal, size)
-	kdt := NewKDTree(points, numDims)
+	kdt := NewKdTree(points, numDims, PageSize4K)
 
 	lowPoint := NewPointBase([]uint64{20, 30, 40}, 0)
 	highPoint := NewPointBase([]uint64{maxVal, maxVal, maxVal}, 0)
@@ -69,7 +69,7 @@ func TestKdInsert(t *testing.T) {
 	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
-	kdt := NewKDTree(points, numDims)
+	kdt := NewKdTree(points, numDims, PageSize4K)
 
 	newPoint := NewPointBase([]uint64{40, 30, 20}, maxVal) //use unique userData
 	kdt.Insert(newPoint)
@@ -103,7 +103,7 @@ func TestKdErase(t *testing.T) {
 	maxVal := uint64(1000)
 	size := 1000
 	points := NewRandPoints(numDims, maxVal, size)
-	kdt := NewKDTree(points, numDims)
+	kdt := NewKdTree(points, numDims, PageSize4K)
 
 	kdt.Erase(points[0])
 

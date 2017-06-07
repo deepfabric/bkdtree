@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	MaxDims   int = 8
-	BlockSize int = 4096
+	MaxDims    int = 8
+	PageSize4K int = 4096
 )
 
 type U64Slice []uint64
@@ -48,27 +48,29 @@ func (d *IntersectCollector) GetLowPoint() Point     { return d.lowPoint }
 func (d *IntersectCollector) GetHighPoint() Point    { return d.highPoint }
 func (d *IntersectCollector) VisitPoint(point Point) { d.points = append(d.points, point) }
 
-type KDTree struct {
-	root    KdTreeNode
-	NumDims int
+type KdTree struct {
+	root      KdTreeNode
+	NumDims   int
+	BlockSize int //size limit of KdTreeLeafNode and KdTreeIntraNode
 }
 
-func NewKDTree(points []Point, numDims int) *KDTree {
+func NewKdTree(points []Point, numDims, blockSize int) *KdTree {
 	if len(points) == 0 || numDims <= 0 || numDims > MaxDims {
 		return nil
 	}
 	pointSize := numDims*8 + 8
-	leafCap := BlockSize / pointSize //how many points can be stored in one leaf node
-	intraCap := (BlockSize - 8) / 16 //how many children can be stored in one intra node
+	leafCap := blockSize / pointSize //how many points can be stored in one leaf node
+	intraCap := (blockSize - 8) / 16 //how many children can be stored in one intra node
 
-	ret := &KDTree{
-		NumDims: numDims,
-		root:    createKDTree(points, 0, numDims, leafCap, intraCap),
+	ret := &KdTree{
+		root:      createKdTree(points, 0, numDims, leafCap, intraCap),
+		NumDims:   numDims,
+		BlockSize: blockSize,
 	}
 	return ret
 }
 
-func createKDTree(points []Point, depth, numDims, leafCap int, intraCap int) KdTreeNode {
+func createKdTree(points []Point, depth, numDims, leafCap int, intraCap int) KdTreeNode {
 	if len(points) == 0 {
 		return nil
 	}
@@ -105,7 +107,7 @@ func createKDTree(points []Point, depth, numDims, leafCap int, intraCap int) KdT
 		if strip != numStrips-1 {
 			posEnd = splitPoses[strip]
 		}
-		child := createKDTree(points[posBegin:posEnd], depth+1, numDims, leafCap, intraCap)
+		child := createKdTree(points[posBegin:posEnd], depth+1, numDims, leafCap, intraCap)
 		children = append(children, child)
 	}
 	ret := &KdTreeIntraNode{
@@ -140,7 +142,7 @@ func (n *KdTreeLeafNode) intersect(visitor IntersectVisitor, numDims int) {
 	}
 }
 
-func (t *KDTree) Intersect(visitor IntersectVisitor) {
+func (t *KdTree) Intersect(visitor IntersectVisitor) {
 	t.root.intersect(visitor, t.NumDims)
 }
 
@@ -162,7 +164,7 @@ func (n *KdTreeLeafNode) insert(point Point, numDims int) {
 	n.points = append(n.points, point)
 }
 
-func (t *KDTree) Insert(point Point) {
+func (t *KdTree) Insert(point Point) {
 	t.root.insert(point, t.NumDims)
 }
 
@@ -201,6 +203,6 @@ func (n *KdTreeLeafNode) erase(point Point, numDims int) (found bool) {
 	return
 }
 
-func (t *KDTree) Erase(point Point) {
+func (t *KdTree) Erase(point Point) {
 	t.root.erase(point, t.NumDims)
 }

@@ -45,6 +45,7 @@ func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
 
 /**
  * KdTreeExtMeta is persisted at the end of file.
+ * Some fields are redundant in order to make the file be self-descriptive.
  * Attention:
  * 1. Keep KdTreeExtMeta be 4 bytes aligned.
  * 2. Keep formatVer one byte, and be the last member.
@@ -53,14 +54,15 @@ func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
 type KdTreeExtMeta struct {
 	idxBegin    uint64
 	numPoints   uint64 //the current number of points. Deleting points could trigger rebuilding the tree.
+	blockSize   uint32
 	numDims     uint8
 	bytesPerDim uint8
-	unused      uint8
+	pointSize   uint8
 	formatVer   uint8 //the file format version. shall be the last byte of the file.
 }
 
 //KdTreeExtMetaSize is sizeof(KdTreeExtMeta)
-const KdTreeExtMetaSize int64 = 8 + 8 + 4
+const KdTreeExtMetaSize int64 = 8 + 8 + 4 + 4
 
 type BkdTree struct {
 	bkdCap      int // N in the paper. len(trees) shall be no larger than math.log2(bkdCap/t0mCap)
@@ -68,6 +70,7 @@ type BkdTree struct {
 	numDims     int // number of point dimensions
 	bytesPerDim int // number of bytes of each encoded dimension
 	pointSize   int
+	blockSize   int    // size limit of KdTreeExtIntraNode and leaf node
 	dir         string //directory of files which hold the persisted kdtrees
 	prefix      string //prefix of file names
 	numPoints   int
@@ -76,7 +79,10 @@ type BkdTree struct {
 }
 
 //NewBkdTree creates a BKDTree
-func NewBkdTree(bkdCap, t0mCap, numDims, bytesPerDim int, dir, prefix string) (bkd *BkdTree) {
+func NewBkdTree(bkdCap, t0mCap, numDims, bytesPerDim, blockSize int, dir, prefix string) (bkd *BkdTree) {
+	if bkdCap <= t0mCap || t0mCap <= 0 || numDims <= 0 || numDims > MaxDims || bytesPerDim%4 != 0 || blockSize <= PageSize4K {
+		return nil
+	}
 	treesCap := int(math.Log2(float64(bkdCap / t0mCap)))
 	bkd = &BkdTree{
 		bkdCap:      bkdCap,
@@ -93,8 +99,10 @@ func NewBkdTree(bkdCap, t0mCap, numDims, bytesPerDim int, dir, prefix string) (b
 		kd := KdTreeExtMeta{
 			idxBegin:    0,
 			numPoints:   0,
+			blockSize:   uint32(bkd.blockSize),
 			numDims:     uint8(bkd.numDims),
 			bytesPerDim: uint8(bkd.bytesPerDim),
+			pointSize:   uint8(bkd.pointSize),
 			formatVer:   0,
 		}
 		bkd.trees = append(bkd.trees, kd)

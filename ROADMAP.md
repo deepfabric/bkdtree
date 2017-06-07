@@ -17,3 +17,4 @@ This document defines the roadmap for BKD tree development.
 - [ ] singel writer, multiple reader
 - [ ] background compact
 - [ ] multiple version of file format
+- [ ] input check, such as blockSize

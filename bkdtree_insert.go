@@ -102,16 +102,9 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 	}
 	defer srcF.Close()
 
-	srcF.Seek(-KdTreeExtMetaSize, 2)
-	var meta KdTreeExtMeta
-	binary.Read(srcF, binary.BigEndian, &meta)
-	if err != nil {
-		return
-	}
-	//TODO: check if meta equals to bkd.trees[idx].Meta
-
 	//depth-first extracting from the root node
-	err = bkd.extractNode(dstF, srcF, &meta, -KdTreeExtMetaSize-int64(BlockSize))
+	meta := &bkd.trees[idx]
+	err = bkd.extractNode(dstF, srcF, meta, -KdTreeExtMetaSize-int64(meta.blockSize))
 	return
 }
 
@@ -156,17 +149,19 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	if err != nil {
 		return
 	}
-	leafCap := BlockSize / bkd.pointSize //how many points can be stored in one leaf node
-	intraCap := (BlockSize - 8) / 24     //how many children can be stored in one intra node
+	leafCap := bkd.blockSize / bkd.pointSize //how many points can be stored in one leaf node
+	intraCap := (bkd.blockSize - 8) / 24     //how many children can be stored in one intra node
 	numPoints := int(idxBegin / int64(bkd.pointSize))
 	bkd.createKDTreeExt(tmpF, 0, numPoints, 0, leafCap, intraCap)
 	//record meta info at end: idxBegin, numDims, numPoints
-	_, err = alignBlockSize(tmpF)
+	_, err = alignBlockSize(tmpF, int64(bkd.blockSize))
 	meta = &KdTreeExtMeta{
 		idxBegin:    uint64(idxBegin),
 		numPoints:   uint64(numPoints),
+		blockSize:   uint32(bkd.blockSize),
 		numDims:     uint8(bkd.numDims),
 		bytesPerDim: uint8(bkd.bytesPerDim),
+		pointSize:   uint8(bkd.pointSize),
 		formatVer:   0,
 	}
 	err = binary.Write(tmpF, binary.BigEndian, meta)
@@ -177,12 +172,12 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	return
 }
 
-func alignBlockSize(tmpF *os.File) (offset int64, err error) {
+func alignBlockSize(tmpF *os.File, blockSize int64) (offset int64, err error) {
 	curOff, err := tmpF.Seek(0, 1) //get current position
 	if err != nil {
 		return
 	}
-	offset = ((curOff + int64(BlockSize) - 1) / int64(BlockSize)) * int64(BlockSize)
+	offset = ((curOff + blockSize - 1) / blockSize) * blockSize
 	// fill with 0 till aligned to BlockSize
 	for i := curOff; i < offset; i++ {
 		err = binary.Write(tmpF, binary.BigEndian, byte(0))
@@ -246,7 +241,7 @@ func (bkd *BkdTree) createKDTreeExt(tmpF *os.File, begin, end int, depth, leafCa
 		}
 	}
 
-	offset, err = alignBlockSize(tmpF)
+	offset, err = alignBlockSize(tmpF, int64(bkd.blockSize))
 	if err != nil {
 		return
 	}
