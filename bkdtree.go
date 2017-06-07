@@ -80,7 +80,7 @@ type BkdTree struct {
 
 //NewBkdTree creates a BKDTree
 func NewBkdTree(bkdCap, t0mCap, numDims, bytesPerDim, blockSize int, dir, prefix string) (bkd *BkdTree) {
-	if bkdCap <= t0mCap || t0mCap <= 0 || numDims <= 0 || numDims > MaxDims || bytesPerDim%4 != 0 || blockSize <= PageSize4K {
+	if bkdCap <= t0mCap || t0mCap <= 0 || numDims <= 0 || numDims > MaxDims || bytesPerDim%4 != 0 || blockSize > PageSize4K {
 		return nil
 	}
 	treesCap := int(math.Log2(float64(bkdCap / t0mCap)))
