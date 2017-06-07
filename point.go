@@ -16,23 +16,8 @@ type Point interface {
 }
 
 type PointBase struct {
-	Vals  []uint64
-	DocId uint64
-}
-
-func (b *PointBase) GetValue(dim int) (val uint64) {
-	val = b.Vals[dim]
-	return
-}
-
-func (b *PointBase) GetUserData() (userData uint64) {
-	userData = b.DocId
-	return
-}
-
-func NewPointBase(vals []uint64, docId uint64) (pb *PointBase) {
-	pb = &PointBase{Vals: vals, DocId: docId}
-	return
+	Vals     []uint64
+	UserData uint64
 }
 
 type PointArray interface {
@@ -47,6 +32,109 @@ type PointArrayMem struct {
 	points  []Point
 	byDim   int
 	numDims int
+}
+
+type PointArrayExt struct {
+	f           *os.File
+	offBegin    int64
+	numPoints   int
+	byDim       int
+	bytesPerDim int
+	numDims     int
+	pointSize   int
+}
+
+func IsInside(point, lowPoint, highPoint Point, numDims int) (isInside bool) {
+	isInside = true
+	for dim := 0; dim < numDims; dim++ {
+		if point.GetValue(dim) < lowPoint.GetValue(dim) || point.GetValue(dim) > highPoint.GetValue(dim) {
+			isInside = false
+			break
+		}
+	}
+	return
+}
+
+func Equals(lhs, rhs Point, numDims int) (isEqual bool) {
+	isEqual = true
+	for dim := 0; dim < numDims; dim++ {
+		if lhs.GetValue(dim) != rhs.GetValue(dim) {
+			isEqual = false
+			return
+		}
+	}
+	return
+}
+
+func (b *PointBase) GetValue(dim int) (val uint64) {
+	val = b.Vals[dim]
+	return
+}
+
+func (b *PointBase) GetUserData() (userData uint64) {
+	userData = b.UserData
+	return
+}
+
+func NewPointBase(vals []uint64, userData uint64) (pb *PointBase) {
+	pb = &PointBase{Vals: vals, UserData: userData}
+	return
+}
+
+//TODO: optimize point encoding/decoding
+func EncodePoint(point Point, numDims, bytesPerDim int) (res []byte) {
+	pointSize := bytesPerDim*numDims + 8
+	res = make([]byte, pointSize)
+	buf := new(bytes.Buffer)
+	idx := 0
+	for dim := 0; dim < numDims; dim++ {
+		val := point.GetValue(dim)
+		err := binary.Write(buf, binary.BigEndian, val)
+		if err != nil {
+			return
+		}
+		bs := buf.Bytes()
+		for i := 8 - bytesPerDim; i < 8; i++ {
+			res[idx] = bs[i]
+			idx++
+		}
+		buf.Reset()
+	}
+	userData := point.GetUserData()
+	err := binary.Write(buf, binary.BigEndian, userData)
+	if err != nil {
+		return
+	}
+	bs := buf.Bytes()
+	for i := 0; i < 8; i++ {
+		res[idx] = bs[i]
+		idx++
+	}
+	return
+}
+
+func DecodePoint(bytesP []byte, numDims int, bytesPerDim int) (p Point) {
+	pointSize := bytesPerDim*numDims + 8
+	if len(bytesP) < pointSize {
+		return
+	}
+	pb := &PointBase{}
+	p = pb
+	for dim := 0; dim < numDims; dim++ {
+		var val uint64 = 0
+		for i := 0; i < bytesPerDim; i++ {
+			val *= 8
+			val += uint64(bytesP[dim*bytesPerDim+i])
+		}
+		pb.Vals = append(pb.Vals, val)
+	}
+	var userData uint64 = 0
+	for i := numDims * bytesPerDim; i < pointSize; i++ {
+		userData *= 8
+		userData += uint64(bytesP[i])
+	}
+	pb.UserData = userData
+	return
 }
 
 // Len is part of sort.Interface.
@@ -100,14 +188,28 @@ func (s *PointArrayMem) Erase(point Point) (found bool, err error) {
 	return
 }
 
-type PointArrayExt struct {
-	f           *os.File
-	offBegin    int64
-	numPoints   int
-	byDim       int
-	bytesPerDim int
-	numDims     int
-	pointSize   int
+func (s *PointArrayMem) ToExt(f *os.File, bytesPerDim int) (pae *PointArrayExt, err error) {
+	pae = &PointArrayExt{
+		f:           f,
+		offBegin:    0,
+		numPoints:   len(s.points),
+		byDim:       s.byDim,
+		numDims:     s.numDims,
+		bytesPerDim: bytesPerDim,
+		pointSize:   s.numDims*bytesPerDim + 8,
+	}
+	pae.offBegin, err = f.Seek(0, 1)
+	if err != nil {
+		return
+	}
+	for _, point := range s.points {
+		bytesP := EncodePoint(point, s.numDims, bytesPerDim)
+		_, err = f.Write(bytesP)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 // Len is part of sort.Interface.
@@ -145,7 +247,7 @@ func (s *PointArrayExt) Less(i, j int) bool {
 }
 
 func (s *PointArrayExt) GetPoint(idx int) (point Point) {
-	pb := &PointBase{Vals: make([]uint64, s.numDims), DocId: 0}
+	pb := &PointBase{Vals: make([]uint64, s.numDims), UserData: 0}
 	point = pb
 	pi := make([]byte, s.pointSize)
 	offI := s.offBegin + int64(idx*s.pointSize)
@@ -157,8 +259,8 @@ func (s *PointArrayExt) GetPoint(idx int) (point Point) {
 		}
 	}
 	for i := s.bytesPerDim * s.numDims; i < s.pointSize; i++ {
-		pb.DocId *= 8
-		pb.DocId += uint64(pi[i])
+		pb.UserData *= 8
+		pb.UserData += uint64(pi[i])
 	}
 	return
 }
@@ -188,7 +290,7 @@ func (s *PointArrayExt) SubArray(begin, end int) (sub PointArray) {
 }
 
 func (s *PointArrayExt) Erase(point Point) (found bool, err error) {
-	bytesP := Encode(point, s.numDims, s.bytesPerDim)
+	bytesP := EncodePoint(point, s.numDims, s.bytesPerDim)
 	off := int64(0)
 	for off = s.offBegin; off < s.offBegin+int64(s.numPoints*s.pointSize); off += int64(s.pointSize) {
 		pi := make([]byte, s.pointSize)
@@ -219,6 +321,26 @@ func (s *PointArrayExt) Erase(point Point) (found bool, err error) {
 	return
 }
 
+func (s *PointArrayExt) ToMem() (pam *PointArrayMem, err error) {
+	points := make([]Point, 0, s.numPoints)
+	off := int64(0)
+	for off = s.offBegin; off < s.offBegin+int64(s.numPoints*s.pointSize); off += int64(s.pointSize) {
+		pi := make([]byte, s.pointSize)
+		_, err = s.f.ReadAt(pi, off) //TODO: handle error?
+		if err != nil {
+			return
+		}
+		point := DecodePoint(pi, s.numDims, s.bytesPerDim)
+		points = append(points, point)
+	}
+	pam = &PointArrayMem{
+		points:  points,
+		byDim:   s.byDim,
+		numDims: s.numDims,
+	}
+	return
+}
+
 // SplitPoints splits points per byDim
 func SplitPoints(points PointArray, numStrips int) (splitValues []uint64, splitPoses []int) {
 	if numStrips <= 1 {
@@ -245,59 +367,6 @@ func SplitPoints(points PointArray, numStrips int) (splitValues []uint64, splitP
 	}
 	for _, pos := range splitPoses2 {
 		splitPoses = append(splitPoses, pos+splitPos)
-	}
-	return
-}
-
-func IsInside(point, lowPoint, highPoint Point, numDims int) (isInside bool) {
-	isInside = true
-	for dim := 0; dim < numDims; dim++ {
-		if point.GetValue(dim) < lowPoint.GetValue(dim) || point.GetValue(dim) > highPoint.GetValue(dim) {
-			isInside = false
-			break
-		}
-	}
-	return
-}
-
-func Equals(lhs, rhs Point, numDims int) (isEqual bool) {
-	isEqual = true
-	for dim := 0; dim < numDims; dim++ {
-		if lhs.GetValue(dim) != rhs.GetValue(dim) {
-			isEqual = false
-			return
-		}
-	}
-	return
-}
-
-func Encode(point Point, numDims, bytesPerDim int) (res []byte) {
-	pointSize := bytesPerDim*numDims + 8
-	res = make([]byte, pointSize)
-	buf := new(bytes.Buffer)
-	idx := 0
-	for dim := 0; dim < numDims; dim++ {
-		val := point.GetValue(dim)
-		err := binary.Write(buf, binary.BigEndian, val)
-		if err != nil {
-			return
-		}
-		bs := buf.Bytes()
-		for i := 8 - bytesPerDim; i < 8; i++ {
-			res[idx] = bs[i]
-			idx++
-		}
-		buf.Reset()
-	}
-	userData := point.GetUserData()
-	err := binary.Write(buf, binary.BigEndian, userData)
-	if err != nil {
-		return
-	}
-	bs := buf.Bytes()
-	for i := 0; i < 8; i++ {
-		res[idx] = bs[i]
-		idx++
 	}
 	return
 }

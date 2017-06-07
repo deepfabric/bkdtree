@@ -82,7 +82,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 
 func (bkd *BkdTree) extractT0M(tmpF *os.File) (err error) {
 	for _, point := range bkd.t0m {
-		bytesP := Encode(point, bkd.numDims, bkd.bytesPerDim)
+		bytesP := EncodePoint(point, bkd.numDims, bkd.bytesPerDim)
 		_, err = tmpF.Write(bytesP)
 		if err != nil {
 			return
