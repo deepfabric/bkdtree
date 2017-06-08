@@ -301,7 +301,7 @@ func (s *PointArrayExt) Erase(point Point) (found bool, err error) {
 		idxLast := s.numPoints - 1
 		pLast := make([]byte, s.pointSize)
 		offLast := s.offBegin + int64(idxLast*s.pointSize)
-		_, err = s.f.ReadAt(pLast, offLast) //TODO: handle error?
+		_, err = s.f.ReadAt(pLast, offLast)
 		if err != nil {
 			return
 		}
@@ -319,7 +319,7 @@ func (s *PointArrayExt) ToMem() (pam *PointArrayMem, err error) {
 	var p Point
 	for off := s.offBegin; off < s.offBegin+int64(s.numPoints*s.pointSize); off += int64(s.pointSize) {
 		pi := make([]byte, s.pointSize)
-		_, err = s.f.ReadAt(pi, off) //TODO: handle error?
+		_, err = s.f.ReadAt(pi, off)
 		if err != nil {
 			return
 		}

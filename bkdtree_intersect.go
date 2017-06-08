@@ -78,7 +78,6 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 				numDims:     bkd.numDims,
 				pointSize:   bkd.pointSize,
 			}
-			//TODO: Convert pae to PointArrayMem?
 			for i := 0; i < pae.numPoints; i++ {
 				point, err1 := pae.GetPoint(i)
 				if err1 != nil {
