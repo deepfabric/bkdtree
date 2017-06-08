@@ -71,17 +71,18 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
  * 3. Keep KdMetaSize be sizeof(KdTreeExtMeta);
  */
 type KdTreeExtMeta struct {
-	idxBegin    uint64
-	numPoints   uint64 //the current number of points. Deleting points could trigger rebuilding the tree.
-	blockSize   uint32
-	numDims     uint8
-	bytesPerDim uint8
-	pointSize   uint8
-	formatVer   uint8 //the file format version. shall be the last byte of the file.
+	pointsOffEnd uint64 //the offset end of points
+	rootOff      uint64 //the offset of root KdTreeExtIntraNode
+	numPoints    uint64 //the current number of points. Deleting points could trigger rebuilding the tree.
+	blockSize    uint32
+	numDims      uint8
+	bytesPerDim  uint8
+	pointSize    uint8
+	formatVer    uint8 //the file format version. shall be the last byte of the file.
 }
 
 //KdTreeExtMetaSize is sizeof(KdTreeExtMeta)
-const KdTreeExtMetaSize int64 = 8 + 8 + 4 + 4
+const KdTreeExtMetaSize int64 = 8*3 + 4 + 4
 
 type BkdTree struct {
 	bkdCap      int // N in the paper. len(trees) shall be no larger than math.log2(bkdCap/t0mCap)
@@ -117,13 +118,14 @@ func NewBkdTree(bkdCap, t0mCap, numDims, bytesPerDim, blockSize int, dir, prefix
 	}
 	for i := 0; i < treesCap; i++ {
 		kd := KdTreeExtMeta{
-			idxBegin:    0,
-			numPoints:   0,
-			blockSize:   uint32(bkd.blockSize),
-			numDims:     uint8(bkd.numDims),
-			bytesPerDim: uint8(bkd.bytesPerDim),
-			pointSize:   uint8(bkd.pointSize),
-			formatVer:   0,
+			pointsOffEnd: 0,
+			rootOff:      0,
+			numPoints:    0,
+			blockSize:    uint32(bkd.blockSize),
+			numDims:      uint8(bkd.numDims),
+			bytesPerDim:  uint8(bkd.bytesPerDim),
+			pointSize:    uint8(bkd.pointSize),
+			formatVer:    0,
 		}
 		bkd.trees = append(bkd.trees, kd)
 	}

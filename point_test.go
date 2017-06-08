@@ -166,7 +166,7 @@ func verifySplit(t *testing.T, pam *PointArrayMem, numStrips int, splitValues []
 		if splitValues[i] > splitValues[i+1] {
 			t.Fatalf("incorrect splitValues\n")
 		}
-		if splitPoses[i] > splitPoses[i+1] {
+		if splitPoses[i] >= splitPoses[i+1] {
 			t.Fatalf("incorrect splitPoses\n")
 		}
 	}
@@ -199,7 +199,7 @@ func TestSplitPoints(t *testing.T) {
 	//TODO: use suite setup to initialize points
 	numDims := 3
 	maxVal := uint64(100)
-	size := 1000
+	size := 10000
 	numStrips := 4
 	points := NewRandPoints(numDims, maxVal, size)
 	pointsSaved := make([]Point, size)

@@ -85,7 +85,7 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 		if child.NumPoints <= 0 {
 			continue
 		}
-		if child.Offset < meta.idxBegin {
+		if child.Offset < meta.pointsOffEnd {
 			//leaf node
 			pae := PointArrayExt{
 				f:           f,

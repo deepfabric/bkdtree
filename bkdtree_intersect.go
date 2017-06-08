@@ -67,7 +67,7 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 		if child.NumPoints <= 0 {
 			continue
 		}
-		if child.Offset < meta.idxBegin {
+		if child.Offset < meta.pointsOffEnd {
 			//leaf node
 			pae := PointArrayExt{
 				f:           f,

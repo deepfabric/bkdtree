@@ -106,16 +106,16 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 
 	//depth-first extracting from the root node
 	meta := &bkd.trees[idx]
-	err = bkd.extractNode(dstF, srcF, meta, -KdTreeExtMetaSize-int64(meta.blockSize))
+	err = bkd.extractNode(dstF, srcF, meta, int64(meta.rootOff))
 	return
 }
 
 func (bkd *BkdTree) extractNode(dstF, srcF *os.File, meta *KdTreeExtMeta, nodeOffset int64) (err error) {
 	if nodeOffset < 0 {
-		_, err = srcF.Seek(nodeOffset, 2)
-	} else {
-		_, err = dstF.Seek(nodeOffset, 0)
+		err = fmt.Errorf("invalid nodeOffset %d", nodeOffset)
+		return
 	}
+	_, err = srcF.Seek(nodeOffset, 0)
 	if err != nil {
 		return
 	}
@@ -125,7 +125,7 @@ func (bkd *BkdTree) extractNode(dstF, srcF *os.File, meta *KdTreeExtMeta, nodeOf
 		return
 	}
 	for _, child := range node.Children {
-		if child.Offset < meta.idxBegin {
+		if child.Offset < meta.pointsOffEnd {
 			//leaf node
 			//TODO: use Linux syscall.Splice() instead?
 			_, err = srcF.Seek(int64(child.Offset), 0)
@@ -149,30 +149,32 @@ func (bkd *BkdTree) extractNode(dstF, srcF *os.File, meta *KdTreeExtMeta, nodeOf
 }
 
 func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
-	idxBegin, err := tmpF.Seek(0, 1) //get current position, where index begins
+	pointsOffEnd, err := tmpF.Seek(0, 1) //get current position
 	if err != nil {
 		return
 	}
 	leafCap := bkd.blockSize / bkd.pointSize //how many points can be stored in one leaf node
 	intraCap := (bkd.blockSize - 8) / 24     //how many children can be stored in one intra node
-	numPoints := int(idxBegin / int64(bkd.pointSize))
+	numPoints := int(pointsOffEnd / int64(bkd.pointSize))
 	_, err = bkd.createKdTreeExt(tmpF, 0, numPoints, 0, leafCap, intraCap)
 	if err != nil {
 		return
 	}
 	//record meta info at end: idxBegin, numDims, numPoints
-	idxBegin, err = alignBlockSize(tmpF, int64(bkd.blockSize))
-	if err != nil {
+	metaOff, err1 := alignBlockSize(tmpF, int64(bkd.blockSize))
+	if err1 != nil {
+		err = err1
 		return
 	}
 	meta = &KdTreeExtMeta{
-		idxBegin:    uint64(idxBegin),
-		numPoints:   uint64(numPoints),
-		blockSize:   uint32(bkd.blockSize),
-		numDims:     uint8(bkd.numDims),
-		bytesPerDim: uint8(bkd.bytesPerDim),
-		pointSize:   uint8(bkd.pointSize),
-		formatVer:   0,
+		pointsOffEnd: uint64(pointsOffEnd),
+		rootOff:      uint64(metaOff - int64(bkd.blockSize)),
+		numPoints:    uint64(numPoints),
+		blockSize:    uint32(bkd.blockSize),
+		numDims:      uint8(bkd.numDims),
+		bytesPerDim:  uint8(bkd.bytesPerDim),
+		pointSize:    uint8(bkd.pointSize),
+		formatVer:    0,
 	}
 	err = binary.Write(tmpF, binary.BigEndian, meta)
 	if err != nil {
