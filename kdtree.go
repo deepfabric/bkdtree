@@ -5,10 +5,6 @@ import (
 	"sort"
 )
 
-const (
-	PageSize4K int = 4096
-)
-
 type U64Slice []uint64
 
 func (a U64Slice) Len() int           { return len(a) }
@@ -48,28 +44,27 @@ func (d *IntersectCollector) GetHighPoint() Point    { return d.highPoint }
 func (d *IntersectCollector) VisitPoint(point Point) { d.points = append(d.points, point) }
 
 type KdTree struct {
-	root      KdTreeNode
-	NumDims   int
-	BlockSize int //size limit of KdTreeLeafNode and KdTreeIntraNode
+	root     KdTreeNode
+	NumDims  int
+	leafCap  int // limit of points a leaf node can hold
+	intraCap int // limit of children of a intra node can hold
 }
 
-func NewKdTree(points []Point, numDims, blockSize int) *KdTree {
-	if len(points) == 0 || numDims <= 0 {
-		return nil
+func NewKdTree(points []Point, numDims, leafCap, intraCap int) (kd *KdTree) {
+	if len(points) == 0 || numDims <= 0 ||
+		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
+		return
 	}
-	pointSize := numDims*8 + 8
-	leafCap := blockSize / pointSize //how many points can be stored in one leaf node
-	intraCap := (blockSize - 8) / 16 //how many children can be stored in one intra node
-
-	ret := &KdTree{
-		root:      createKdTree(points, 0, numDims, leafCap, intraCap),
-		NumDims:   numDims,
-		BlockSize: blockSize,
+	kd = &KdTree{
+		root:     createKdTree(points, 0, numDims, leafCap, intraCap),
+		NumDims:  numDims,
+		leafCap:  leafCap,
+		intraCap: intraCap,
 	}
-	return ret
+	return
 }
 
-func createKdTree(points []Point, depth, numDims, leafCap int, intraCap int) KdTreeNode {
+func createKdTree(points []Point, depth, numDims, leafCap, intraCap int) KdTreeNode {
 	if len(points) == 0 {
 		return nil
 	}

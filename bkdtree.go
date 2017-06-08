@@ -103,7 +103,7 @@ type BkdTree struct {
 func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree) {
 	if t0mCap <= 0 || treesCap <= 0 || numDims <= 0 || bytesPerDim%4 != 0 ||
 		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
-		return nil
+		return
 	}
 	bkdCap := t0mCap<<uint(treesCap) - 1
 	bkd = &BkdTree{
