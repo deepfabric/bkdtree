@@ -22,7 +22,7 @@ func (bkd *BkdTree) intersectT0M(visitor IntersectVisitor) {
 	lowP := visitor.GetLowPoint()
 	highP := visitor.GetHighPoint()
 	for _, point := range bkd.t0m {
-		if IsInside(point, lowP, highP, bkd.numDims) {
+		if point.Inside(lowP, highP) {
 			visitor.VisitPoint(point)
 		}
 	}
@@ -51,9 +51,12 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 	lowP := visitor.GetLowPoint()
 	highP := visitor.GetHighPoint()
 	if nodeOffset < 0 {
-		f.Seek(nodeOffset, 2)
+		_, err = f.Seek(nodeOffset, 2)
 	} else {
-		f.Seek(nodeOffset, 0)
+		_, err = f.Seek(nodeOffset, 0)
+	}
+	if err != nil {
+		return
 	}
 	var node KdTreeExtIntraNode
 	err = node.Read(f)
@@ -77,8 +80,12 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 			}
 			//TODO: Convert pae to PointArrayMem?
 			for i := 0; i < pae.numPoints; i++ {
-				point := pae.GetPoint(i)
-				if IsInside(point, lowP, highP, bkd.numDims) {
+				point, err1 := pae.GetPoint(i)
+				if err1 != nil {
+					err = err1
+					return
+				}
+				if point.Inside(lowP, highP) {
 					visitor.VisitPoint(point)
 				}
 			}

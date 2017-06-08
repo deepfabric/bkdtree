@@ -90,9 +90,8 @@ func createKdTree(points []Point, depth, numDims, leafCap int, intraCap int) KdT
 	}
 
 	pam := PointArrayMem{
-		points:  points,
-		byDim:   splitDim,
-		numDims: numDims,
+		points: points,
+		byDim:  splitDim,
 	}
 
 	splitValues, splitPoses := SplitPoints(&pam, numStrips)
@@ -119,8 +118,8 @@ func createKdTree(points []Point, depth, numDims, leafCap int, intraCap int) KdT
 }
 
 func (n *KdTreeIntraNode) intersect(visitor IntersectVisitor, numDims int) {
-	lowVal := visitor.GetLowPoint().GetValue(n.splitDim)
-	highVal := visitor.GetHighPoint().GetValue(n.splitDim)
+	lowVal := visitor.GetLowPoint().Vals[n.splitDim]
+	highVal := visitor.GetHighPoint().Vals[n.splitDim]
 	numSplits := len(n.splitValues)
 	//calculate children[begin:end) need to visit
 	end := sort.Search(numSplits, func(i int) bool { return n.splitValues[i] > highVal })
@@ -135,7 +134,7 @@ func (n *KdTreeLeafNode) intersect(visitor IntersectVisitor, numDims int) {
 	lowPoint := visitor.GetLowPoint()
 	highPoint := visitor.GetHighPoint()
 	for _, point := range n.points {
-		isInside := IsInside(point, lowPoint, highPoint, numDims)
+		isInside := point.Inside(lowPoint, highPoint)
 		if isInside {
 			visitor.VisitPoint(point)
 		}
@@ -147,7 +146,7 @@ func (t *KdTree) Intersect(visitor IntersectVisitor) {
 }
 
 func (n *KdTreeIntraNode) insert(point Point, numDims int) {
-	lowVal := point.GetValue(n.splitDim)
+	lowVal := point.Vals[n.splitDim]
 	highVal := lowVal
 	numSplits := len(n.splitValues)
 	//calculate children[begin:end) need to visit
@@ -169,7 +168,7 @@ func (t *KdTree) Insert(point Point) {
 }
 
 func (n *KdTreeIntraNode) erase(point Point, numDims int) (found bool) {
-	lowVal := point.GetValue(n.splitDim)
+	lowVal := point.Vals[n.splitDim]
 	highVal := lowVal
 	numSplits := len(n.splitValues)
 	//calculate children[begin:end) need to visit
@@ -191,7 +190,7 @@ func (n *KdTreeLeafNode) erase(point Point, numDims int) (found bool) {
 	idx := len(n.points)
 	for i, point2 := range n.points {
 		//assumes each point's userData is unique
-		if Equals(point, point2, numDims) && point.GetUserData() == point2.GetUserData() {
+		if point.Equal(point2) {
 			idx = i
 			break
 		}

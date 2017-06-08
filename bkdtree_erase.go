@@ -11,9 +11,8 @@ import (
 func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 	//Query T0M with p; if found, delete it and return.
 	pam := PointArrayMem{
-		points:  bkd.t0m,
-		byDim:   0,
-		numDims: bkd.numDims,
+		points: bkd.t0m,
+		byDim:  0,
 	}
 	found, err = pam.Erase(point)
 	if err != nil {
@@ -57,8 +56,11 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 	}
 	if found {
 		bkd.trees[idx].numPoints--
-		f.Seek(-KdTreeExtMetaSize, 2)
-		binary.Write(f, binary.BigEndian, &bkd.trees[idx])
+		_, err = f.Seek(-KdTreeExtMetaSize, 2)
+		if err != nil {
+			return
+		}
+		err = binary.Write(f, binary.BigEndian, &bkd.trees[idx])
 		return
 	}
 	return
@@ -66,16 +68,19 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 
 func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, nodeOffset int64) (found bool, err error) {
 	if nodeOffset < 0 {
-		f.Seek(nodeOffset, 2)
+		_, err = f.Seek(nodeOffset, 2)
 	} else {
-		f.Seek(nodeOffset, 0)
+		_, err = f.Seek(nodeOffset, 0)
+	}
+	if err != nil {
+		return
 	}
 	var node KdTreeExtIntraNode
 	err = node.Read(f)
 	if err != nil {
 		return
 	}
-	idx := 0
+	var idx int
 	for i, child := range node.Children {
 		if child.NumPoints <= 0 {
 			continue

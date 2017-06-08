@@ -22,7 +22,7 @@ func TestKdIntersectSome(t *testing.T) {
 		t.Errorf("found 0 matchs, however some expected")
 	}
 	for _, point := range visitor.points {
-		isInside := IsInside(point, lowPoint, highPoint, numDims)
+		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
 		}
@@ -35,8 +35,8 @@ func TestKdIntersectAll(t *testing.T) {
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKdTree(points, numDims, PageSize4K)
 
-	lowPoint := NewPointBase([]uint64{0, 0, 0}, 0)
-	highPoint := NewPointBase([]uint64{maxVal, maxVal, maxVal}, 0)
+	lowPoint := Point{[]uint64{0, 0, 0}, 0}
+	highPoint := Point{[]uint64{maxVal, maxVal, maxVal}, 0}
 	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0, size)}
 	kdt.Intersect(visitor)
 	if len(visitor.points) != size {
@@ -51,14 +51,14 @@ func TestKdIntersect(t *testing.T) {
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKdTree(points, numDims, PageSize4K)
 
-	lowPoint := NewPointBase([]uint64{20, 30, 40}, 0)
-	highPoint := NewPointBase([]uint64{maxVal, maxVal, maxVal}, 0)
+	lowPoint := Point{[]uint64{20, 30, 40}, 0}
+	highPoint := Point{[]uint64{maxVal, maxVal, maxVal}, 0}
 	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
 	kdt.Intersect(visitor)
 
 	//fmt.Printf("%v\n", visitor.points)
 	for _, point := range visitor.points {
-		isInside := IsInside(point, lowPoint, highPoint, numDims)
+		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
 		}
@@ -72,7 +72,7 @@ func TestKdInsert(t *testing.T) {
 	points := NewRandPoints(numDims, maxVal, size)
 	kdt := NewKdTree(points, numDims, PageSize4K)
 
-	newPoint := NewPointBase([]uint64{40, 30, 20}, maxVal) //use unique userData
+	newPoint := Point{[]uint64{40, 30, 20}, maxVal} //use unique userData
 	kdt.Insert(newPoint)
 
 	lowPoint := newPoint
@@ -86,11 +86,11 @@ func TestKdInsert(t *testing.T) {
 	}
 	numMatchs := 0
 	for _, point := range visitor.points {
-		isInside := IsInside(point, lowPoint, highPoint, numDims)
+		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
 		}
-		if point.GetUserData() == newPoint.GetUserData() {
+		if point.UserData == newPoint.UserData {
 			numMatchs++
 		}
 	}

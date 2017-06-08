@@ -23,7 +23,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	//find the smallest index k in [0, len(trees)) at which trees[k] is empty, or its capacity is no less than the sum of size of t0m + trees[0:k+1]
 	sum := len(bkd.t0m)
 	capK := bkd.t0mCap / 2
-	k := 0
+	var k int
 	for k = 0; k < len(bkd.trees); k++ {
 		if bkd.trees[k].numPoints == 0 {
 			break
@@ -84,7 +84,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 
 func (bkd *BkdTree) extractT0M(tmpF *os.File) (err error) {
 	for _, point := range bkd.t0m {
-		bytesP := EncodePoint(point, bkd.numDims, bkd.bytesPerDim)
+		bytesP := point.Encode(bkd.bytesPerDim)
 		_, err = tmpF.Write(bytesP)
 		if err != nil {
 			return
