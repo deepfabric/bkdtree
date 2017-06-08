@@ -6,7 +6,6 @@ import (
 )
 
 const (
-	MaxDims    int = 8
 	PageSize4K int = 4096
 )
 
@@ -55,7 +54,7 @@ type KdTree struct {
 }
 
 func NewKdTree(points []Point, numDims, blockSize int) *KdTree {
-	if len(points) == 0 || numDims <= 0 || numDims > MaxDims {
+	if len(points) == 0 || numDims <= 0 {
 		return nil
 	}
 	pointSize := numDims*8 + 8

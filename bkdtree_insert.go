@@ -22,14 +22,13 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	}
 	//find the smallest index k in [0, len(trees)) at which trees[k] is empty, or its capacity is no less than the sum of size of t0m + trees[0:k+1]
 	sum := len(bkd.t0m)
-	capK := bkd.t0mCap / 2
 	var k int
 	for k = 0; k < len(bkd.trees); k++ {
 		if bkd.trees[k].numPoints == 0 {
 			break
 		}
 		sum += int(bkd.trees[k].numPoints)
-		capK *= 2
+		capK := bkd.t0mCap << uint(k)
 		if capK >= sum {
 			break
 		}

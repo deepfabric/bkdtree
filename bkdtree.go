@@ -3,7 +3,6 @@ package bkdtree
 import (
 	"encoding/binary"
 	"io"
-	"math"
 )
 
 type KdTreeExtNodeInfo struct {
@@ -99,11 +98,11 @@ type BkdTree struct {
 }
 
 //NewBkdTree creates a BKDTree
-func NewBkdTree(bkdCap, t0mCap, numDims, bytesPerDim, blockSize int, dir, prefix string) (bkd *BkdTree) {
-	if bkdCap <= t0mCap || t0mCap <= 0 || numDims <= 0 || numDims > MaxDims || bytesPerDim%4 != 0 || blockSize > PageSize4K {
+func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, blockSize int, dir, prefix string) (bkd *BkdTree) {
+	if t0mCap <= 0 || treesCap <= 0 || numDims <= 0 || bytesPerDim%4 != 0 || blockSize > PageSize4K {
 		return nil
 	}
-	treesCap := int(math.Log2(float64(bkdCap / t0mCap)))
+	bkdCap := t0mCap<<uint(treesCap) - 1
 	bkd = &BkdTree{
 		bkdCap:      bkdCap,
 		t0mCap:      t0mCap,
