@@ -60,16 +60,16 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 	if err != nil {
 		return
 	}
-	for _, child := range node.children {
-		if child.numPoints <= 0 {
+	for _, child := range node.Children {
+		if child.NumPoints <= 0 {
 			continue
 		}
-		if child.offset < meta.idxBegin {
+		if child.Offset < meta.idxBegin {
 			//leaf node
 			pae := PointArrayExt{
 				f:           f,
-				offBegin:    int64(child.offset),
-				numPoints:   int(child.numPoints),
+				offBegin:    int64(child.Offset),
+				numPoints:   int(child.NumPoints),
 				byDim:       0, //not used
 				bytesPerDim: bkd.bytesPerDim,
 				numDims:     bkd.numDims,
@@ -84,7 +84,7 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 			}
 		} else {
 			//intra node
-			err = bkd.intersectNode(visitor, f, meta, int64(child.offset))
+			err = bkd.intersectNode(visitor, f, meta, int64(child.Offset))
 		}
 		if err != nil {
 			return

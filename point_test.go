@@ -60,7 +60,7 @@ func NewRandPoints(numDims int, maxVal uint64, size int) (points []Point) {
 func TestPointArrayExt_ToMem(t *testing.T) {
 	numDims := 3
 	maxVal := uint64(100)
-	size := 1000
+	size := 10000
 	points := NewRandPoints(numDims, maxVal, size)
 	pam := PointArrayMem{
 		points:  points,
@@ -126,6 +126,14 @@ func verifySplit(t *testing.T, pam *PointArrayMem, numStrips int, splitValues []
 	//fmt.Printf("points: %v\nsplitValues: %v\nsplitPoses:%v\n", points, splitValues, splitPoses)
 	if len(splitValues) != numStrips-1 || len(splitValues) != len(splitPoses) {
 		t.Fatalf("incorrect size of splitValues or splitPoses\n")
+		}
+		for i := 0; i < len(splitValues)-1; i++ {
+			if splitValues[i] > splitValues[i+1] {
+				t.Fatalf("incorrect splitValues\n")
+			}
+			if splitPoses[i] > splitPoses[i+1] {
+				t.Fatalf("incorrect splitPoses\n")
+			}
 	}
 	numSplits := len(splitValues)
 	for strip := 0; strip < numStrips; strip++ {

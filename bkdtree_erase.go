@@ -76,16 +76,16 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 		return
 	}
 	idx := 0
-	for i, child := range node.children {
-		if child.numPoints <= 0 {
+	for i, child := range node.Children {
+		if child.NumPoints <= 0 {
 			continue
 		}
-		if child.offset < meta.idxBegin {
+		if child.Offset < meta.idxBegin {
 			//leaf node
 			pae := PointArrayExt{
 				f:           f,
-				offBegin:    int64(child.offset),
-				numPoints:   int(child.numPoints),
+				offBegin:    int64(child.Offset),
+				numPoints:   int(child.NumPoints),
 				byDim:       0, //not used
 				bytesPerDim: bkd.bytesPerDim,
 				numDims:     bkd.numDims,
@@ -94,14 +94,14 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 			found, err = pae.Erase(point)
 		} else {
 			//intra node
-			found, err = bkd.eraseNode(point, f, meta, int64(child.offset))
+			found, err = bkd.eraseNode(point, f, meta, int64(child.Offset))
 		}
 		if err != nil {
 			return
 		}
 		if found {
 			idx = i
-			child.numPoints--
+			child.NumPoints--
 			break
 		}
 	}
@@ -110,7 +110,7 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 		if err != nil {
 			return
 		}
-		err = binary.Write(f, binary.BigEndian, node.children[idx])
+		err = binary.Write(f, binary.BigEndian, node.Children[idx])
 	}
 	return
 }
