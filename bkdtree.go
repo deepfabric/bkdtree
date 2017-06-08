@@ -6,7 +6,7 @@ import (
 )
 
 type KdTreeExtNodeInfo struct {
-	Offset    uint64 //offset in file. It's a leaf if less than pointOffEnd, otherwise an intra node.
+	Offset    uint64 //offset in file. It's a leaf if less than pointsOffEnd, otherwise an intra node.
 	NumPoints uint64 //number of points of subtree rooted at this node
 }
 
