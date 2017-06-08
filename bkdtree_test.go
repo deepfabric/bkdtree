@@ -1,8 +1,6 @@
 package bkdtree
 
 import (
-	"io"
-	"reflect"
 	"testing"
 )
 
@@ -11,10 +9,11 @@ func TestBkdInsert(t *testing.T) {
 	treesCap := 5
 	numDims := 2
 	bytesPerDim := 4
-	blockSize := 512
+	leafCap := 50
+	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd := NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, blockSize, dir, prefix)
+	bkd := NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if bkd == nil {
 		t.Fatalf("bkd is nil")
 	}
@@ -50,52 +49,5 @@ func TestBkdInsert(t *testing.T) {
 	err := bkd.Insert(points[bkdCap])
 	if err == nil {
 		t.Fatalf("bkd.Insert shall fail if tree is full")
-	}
-}
-
-func TestKdTreeExtIntraNode_Read(t *testing.T) {
-	type args struct {
-		r io.Reader
-	}
-	tests := []struct {
-		name    string
-		n       *KdTreeExtIntraNode
-		args    args
-		wantErr bool
-	}{
-	// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.n.Read(tt.args.r); (err != nil) != tt.wantErr {
-				t.Errorf("KdTreeExtIntraNode.Read() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestNewBkdTree(t *testing.T) {
-	type args struct {
-		bkdCap      int
-		t0mCap      int
-		numDims     int
-		bytesPerDim int
-		blockSize   int
-		dir         string
-		prefix      string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantBkd *BkdTree
-	}{
-	// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if gotBkd := NewBkdTree(tt.args.bkdCap, tt.args.t0mCap, tt.args.numDims, tt.args.bytesPerDim, tt.args.blockSize, tt.args.dir, tt.args.prefix); !reflect.DeepEqual(gotBkd, tt.wantBkd) {
-				t.Errorf("NewBkdTree() = %v, want %v", gotBkd, tt.wantBkd)
-			}
-		})
 	}
 }

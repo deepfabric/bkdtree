@@ -73,7 +73,8 @@ type KdTreeExtMeta struct {
 	pointsOffEnd uint64 //the offset end of points
 	rootOff      uint64 //the offset of root KdTreeExtIntraNode
 	numPoints    uint64 //the current number of points. Deleting points could trigger rebuilding the tree.
-	blockSize    uint32
+	leafCap      uint16
+	intraCap     uint16
 	numDims      uint8
 	bytesPerDim  uint8
 	pointSize    uint8
@@ -89,7 +90,8 @@ type BkdTree struct {
 	numDims     int // number of point dimensions
 	bytesPerDim int // number of bytes of each encoded dimension
 	pointSize   int
-	blockSize   int    // size limit of KdTreeExtIntraNode and leaf node
+	leafCap     int    // limit of points a leaf node can hold
+	intraCap    int    // limit of children of a intra node can hold
 	dir         string //directory of files which hold the persisted kdtrees
 	prefix      string //prefix of file names
 	numPoints   int
@@ -98,8 +100,9 @@ type BkdTree struct {
 }
 
 //NewBkdTree creates a BKDTree
-func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, blockSize int, dir, prefix string) (bkd *BkdTree) {
-	if t0mCap <= 0 || treesCap <= 0 || numDims <= 0 || bytesPerDim%4 != 0 || blockSize > PageSize4K {
+func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree) {
+	if t0mCap <= 0 || treesCap <= 0 || numDims <= 0 || bytesPerDim%4 != 0 ||
+		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
 		return nil
 	}
 	bkdCap := t0mCap<<uint(treesCap) - 1
@@ -109,7 +112,8 @@ func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, blockSize int, dir, pref
 		numDims:     numDims,
 		bytesPerDim: bytesPerDim,
 		pointSize:   numDims*bytesPerDim + 8,
-		blockSize:   blockSize,
+		leafCap:     leafCap,
+		intraCap:    intraCap,
 		dir:         dir,
 		prefix:      prefix,
 		t0m:         make([]Point, 0, t0mCap),
@@ -120,7 +124,8 @@ func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, blockSize int, dir, pref
 			pointsOffEnd: 0,
 			rootOff:      0,
 			numPoints:    0,
-			blockSize:    uint32(bkd.blockSize),
+			leafCap:      uint16(bkd.leafCap),
+			intraCap:     uint16(bkd.intraCap),
 			numDims:      uint8(bkd.numDims),
 			bytesPerDim:  uint8(bkd.bytesPerDim),
 			pointSize:    uint8(bkd.pointSize),

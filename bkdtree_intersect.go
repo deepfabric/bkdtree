@@ -42,7 +42,7 @@ func (bkd *BkdTree) intersectTi(visitor IntersectVisitor, idx int) (err error) {
 
 	//depth-first visiting from the root node
 	meta := &bkd.trees[idx]
-	err = bkd.intersectNode(visitor, f, meta, -KdTreeExtMetaSize-int64(meta.blockSize))
+	err = bkd.intersectNode(visitor, f, meta, int64(meta.rootOff))
 	return
 }
 

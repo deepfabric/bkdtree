@@ -152,24 +152,19 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	if err != nil {
 		return
 	}
-	leafCap := bkd.blockSize / bkd.pointSize //how many points can be stored in one leaf node
-	intraCap := (bkd.blockSize - 8) / 24     //how many children can be stored in one intra node
 	numPoints := int(pointsOffEnd / int64(bkd.pointSize))
-	_, err = bkd.createKdTreeExt(tmpF, 0, numPoints, 0, leafCap, intraCap)
-	if err != nil {
-		return
-	}
-	//record meta info at end: idxBegin, numDims, numPoints
-	metaOff, err1 := alignBlockSize(tmpF, int64(bkd.blockSize))
+	rootOff, err1 := bkd.createKdTreeExt(tmpF, 0, numPoints, 0)
 	if err1 != nil {
 		err = err1
 		return
 	}
+	//record meta info at end
 	meta = &KdTreeExtMeta{
 		pointsOffEnd: uint64(pointsOffEnd),
-		rootOff:      uint64(metaOff - int64(bkd.blockSize)),
+		rootOff:      uint64(rootOff),
 		numPoints:    uint64(numPoints),
-		blockSize:    uint32(bkd.blockSize),
+		leafCap:      uint16(bkd.leafCap),
+		intraCap:     uint16(bkd.intraCap),
 		numDims:      uint8(bkd.numDims),
 		bytesPerDim:  uint8(bkd.bytesPerDim),
 		pointSize:    uint8(bkd.pointSize),
@@ -183,32 +178,21 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	return
 }
 
-func alignBlockSize(tmpF *os.File, blockSize int64) (offset int64, err error) {
-	curOff, err := tmpF.Seek(0, 1) //get current position
-	if err != nil {
-		return
-	}
-	offset = ((curOff + blockSize - 1) / blockSize) * blockSize
-	// fill with 0 till aligned to BlockSize
-	for i := curOff; i < offset; i++ {
-		err = binary.Write(tmpF, binary.BigEndian, byte(0))
-		if err != nil {
-			return
-		}
-	}
+func getCurrentOffset(f *os.File) (offset int64, err error) {
+	offset, err = f.Seek(0, 1) //get current position
 	return
 }
 
-func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end int, depth, leafCap, intraCap int) (offset int64, err error) {
+func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end, depth int) (offset int64, err error) {
 	if begin >= end {
 		err = fmt.Errorf("assertion begin>=end failed, begin %v, end %v", begin, end)
 		return
 	}
 
 	splitDim := depth % bkd.numDims
-	numStrips := (end - begin + leafCap - 1) / leafCap
-	if numStrips > intraCap {
-		numStrips = intraCap
+	numStrips := (end - begin + bkd.leafCap - 1) / bkd.leafCap
+	if numStrips > bkd.intraCap {
+		numStrips = bkd.intraCap
 	}
 
 	pae := PointArrayExt{
@@ -233,14 +217,14 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end int, depth, leafCa
 		if strip != numStrips-1 {
 			posEnd = begin + splitPoses[strip]
 		}
-		if posEnd-posBegin <= leafCap {
+		if posEnd-posBegin <= bkd.leafCap {
 			info := KdTreeExtNodeInfo{
 				Offset:    uint64(posBegin * bkd.pointSize),
 				NumPoints: uint64(posEnd - posBegin),
 			}
 			children = append(children, info)
 		} else {
-			childOffset, err = bkd.createKdTreeExt(tmpF, posBegin, posEnd, depth+1, leafCap, intraCap)
+			childOffset, err = bkd.createKdTreeExt(tmpF, posBegin, posEnd, depth+1)
 			if err != nil {
 				return
 			}
@@ -252,7 +236,7 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end int, depth, leafCa
 		}
 	}
 
-	offset, err = alignBlockSize(tmpF, int64(bkd.blockSize))
+	offset, err = getCurrentOffset(tmpF)
 	if err != nil {
 		return
 	}

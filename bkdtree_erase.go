@@ -50,7 +50,7 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 
 	//depth-first erasing from the root node
 	meta := &bkd.trees[idx]
-	found, err = bkd.eraseNode(point, f, meta, -KdTreeExtMetaSize-int64(meta.blockSize))
+	found, err = bkd.eraseNode(point, f, meta, int64(meta.rootOff))
 	if err != nil {
 		return
 	}
