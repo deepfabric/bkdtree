@@ -9,11 +9,12 @@ This document defines the roadmap for BKD tree development.
 - [D] erase - Kdtree in mem
 
 ##### BKD tree
-- [ ] build
-- [ ] insert 
-- [ ] earse
-- [ ] intersect
-- [ ] restore
-- [ ] singel writer, multiple reader
-- [ ] background compact
-- [ ] multiple version of file format
+- [D] build
+- [D] insert 
+- [D] erase
+- [D] intersect
+- [D] compatible file format to allow multiple versions
+- [ ] disaster recovery - insert/erase binlog
+- [ ] disaster recovery - rebuild
+- [ ] concurrent - singel writer, multiple reader
+- [ ] concurrent - background compact
