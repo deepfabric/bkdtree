@@ -100,12 +100,11 @@ type BkdTree struct {
 }
 
 //NewBkdTree creates a BKDTree
-func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree) {
-	if t0mCap <= 0 || treesCap <= 0 || numDims <= 0 || bytesPerDim%4 != 0 ||
+func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree) {
+	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 || bytesPerDim%4 != 0 ||
 		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
 		return
 	}
-	bkdCap := t0mCap<<uint(treesCap) - 1
 	bkd = &BkdTree{
 		bkdCap:      bkdCap,
 		t0mCap:      t0mCap,
@@ -117,21 +116,7 @@ func NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, leafCap, intraCap int, d
 		dir:         dir,
 		prefix:      prefix,
 		t0m:         make([]Point, 0, t0mCap),
-		trees:       make([]KdTreeExtMeta, 0, treesCap),
-	}
-	for i := 0; i < treesCap; i++ {
-		kd := KdTreeExtMeta{
-			pointsOffEnd: 0,
-			rootOff:      0,
-			numPoints:    0,
-			leafCap:      uint16(bkd.leafCap),
-			intraCap:     uint16(bkd.intraCap),
-			numDims:      uint8(bkd.numDims),
-			bytesPerDim:  uint8(bkd.bytesPerDim),
-			pointSize:    uint8(bkd.pointSize),
-			formatVer:    0,
-		}
-		bkd.trees = append(bkd.trees, kd)
+		trees:       make([]KdTreeExtMeta, 0),
 	}
 	return
 }

@@ -17,8 +17,7 @@ func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 	found, err = pam.Erase(point)
 	if err != nil {
 		return
-	}
-	if found {
+	} else if found {
 		bkd.numPoints--
 		return
 	}
@@ -28,8 +27,7 @@ func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 		found, err = bkd.eraseTi(point, i)
 		if err != nil {
 			return
-		}
-		if found {
+		} else if found {
 			bkd.numPoints--
 			return
 		}

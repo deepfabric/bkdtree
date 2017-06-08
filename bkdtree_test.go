@@ -7,18 +7,18 @@ import (
 func TestBkdInsert(t *testing.T) {
 	t0mCap := 1000
 	treesCap := 5
+	bkdCap := t0mCap<<uint(treesCap) - 1
 	numDims := 2
 	bytesPerDim := 4
 	leafCap := 50
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd := NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	bkd := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if bkd == nil {
 		t.Fatalf("bkd is nil")
 	}
 
-	bkdCap := t0mCap<<uint(treesCap) - 1
 	maxVal := uint64(1000)
 	size := bkdCap + 1
 	points := NewRandPoints(numDims, maxVal, size)
@@ -55,18 +55,18 @@ func TestBkdInsert(t *testing.T) {
 func prepareBkdTree(t *testing.T, maxVal uint64) (bkd *BkdTree, points []Point) {
 	t0mCap := 1000
 	treesCap := 5
+	bkdCap := t0mCap<<uint(treesCap) - 1
 	numDims := 2
 	bytesPerDim := 4
 	leafCap := 50
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd = NewBkdTree(t0mCap, treesCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	bkd = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if bkd == nil {
 		t.Fatalf("bkd is nil")
 	}
 
-	bkdCap := t0mCap<<uint(treesCap) - 1
 	size := bkdCap
 	points = NewRandPoints(numDims, maxVal, size)
 	for i := 0; i < bkdCap; i++ {
@@ -123,11 +123,26 @@ func TestBkdIntersect(t *testing.T) {
 	}
 }
 
+func countPoint(bkd *BkdTree, point Point) (cnt int, err error) {
+	lowPoint, highPoint := point, point
+	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
+	err = bkd.Intersect(visitor)
+	if err != nil {
+		return
+	}
+	for _, p := range visitor.points {
+		if p.Equal(point) {
+			cnt++
+		}
+	}
+	return
+}
+
 func TestBkdErase(t *testing.T) {
 	var maxVal uint64 = 1000
 	bkd, points := prepareBkdTree(t, maxVal)
-	var target, lowPoint, highPoint Point
-	var visitor *IntersectCollector
+	var target Point
+	var cnt int
 	var found bool
 	var err error
 
@@ -141,26 +156,34 @@ func TestBkdErase(t *testing.T) {
 		t.Fatalf("point %v found, want non-existing", target)
 	}
 
-	//erase an existing point
+	//erase an existing point, verify the point really erased.
 	target = points[13]
 	found, err = bkd.Erase(target)
 	if err != nil {
 		t.Fatalf("%v", err)
 	} else if !found {
 		t.Fatalf("point %v not found", target)
+	} else if bkd.numPoints != len(points)-1 {
+		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.numPoints, len(points)-1)
 	}
-
-	// verify the point really erased.
-	lowPoint = target
-	highPoint = lowPoint
-	visitor = &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
-	err = bkd.Intersect(visitor)
+	cnt, err = countPoint(bkd, target)
 	if err != nil {
 		t.Fatalf("%v", err)
+	} else if cnt != 0 {
+		t.Errorf("point %v still exists", target)
 	}
-	for _, point := range visitor.points {
-		if point.Equal(target) {
-			t.Errorf("point %v still exists", target)
-		}
+
+	//there's room for insertion
+	err = bkd.Insert(target)
+	if err != nil {
+		t.Fatalf("bkd.Insert failed, err: %v", err)
+	} else if bkd.numPoints != len(points) {
+		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.numPoints, len(points))
+	}
+	cnt, err = countPoint(bkd, target)
+	if err != nil {
+		t.Fatalf("%v", err)
+	} else if cnt != 1 {
+		t.Errorf("point %v still exists", target)
 	}
 }

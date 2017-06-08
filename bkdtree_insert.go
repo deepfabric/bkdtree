@@ -33,9 +33,19 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 			break
 		}
 	}
-	if k >= cap(bkd.trees) {
-		//impossible since bkd.numPoints has been checked
-		return errors.New("BKDTree is full")
+	if k == len(bkd.trees) {
+		kd := KdTreeExtMeta{
+			pointsOffEnd: 0,
+			rootOff:      0,
+			numPoints:    0,
+			leafCap:      uint16(bkd.leafCap),
+			intraCap:     uint16(bkd.intraCap),
+			numDims:      uint8(bkd.numDims),
+			bytesPerDim:  uint8(bkd.bytesPerDim),
+			pointSize:    uint8(bkd.pointSize),
+			formatVer:    0,
+		}
+		bkd.trees = append(bkd.trees, kd)
 	}
 	//extract all points from t0m and trees[0:k+1] into a file F
 	tmpFpK := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d.tmp", bkd.prefix, k))
