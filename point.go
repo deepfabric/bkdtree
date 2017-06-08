@@ -49,7 +49,7 @@ func (p *Point) Inside(lowPoint, highPoint Point) (isInside bool) {
 	return
 }
 
-func (p *Point) Equal(rhs Point) (isEqual bool) {
+func (p *Point) Equal(rhs Point) (res bool) {
 	if p.UserData != rhs.UserData || len(p.Vals) != len(rhs.Vals) {
 		return
 	}
@@ -58,6 +58,7 @@ func (p *Point) Equal(rhs Point) (isEqual bool) {
 			return
 		}
 	}
+	res = true
 	return
 }
 
@@ -103,14 +104,14 @@ func (p *Point) Decode(bytesP []byte, numDims int, bytesPerDim int) (err error) 
 	for dim := 0; dim < numDims; dim++ {
 		var val uint64
 		for i := 0; i < bytesPerDim; i++ {
-			val *= 8
+			val <<= 8
 			val += uint64(bytesP[dim*bytesPerDim+i])
 		}
 		p.Vals[dim] = val
 	}
 	var userData uint64
 	for i := numDims * bytesPerDim; i < pointSize; i++ {
-		userData *= 8
+		userData <<= 8
 		userData += uint64(bytesP[i])
 	}
 	p.UserData = userData
@@ -356,6 +357,8 @@ func SplitPoints(points PointArray, numStrips int) (splitValues []uint64, splitP
 	splitPoses = append(splitPoses, splitPos)
 	splitValues2, splitPoses2 := SplitPoints(points.SubArray(splitPos, points.Len()), numStrips2)
 	splitValues = append(splitValues, splitValues2...)
-	splitPoses = append(splitPoses, splitPoses2...)
+	for i := 0; i < len(splitPoses2); i++ {
+		splitPoses = append(splitPoses, splitPos+splitPoses2[i])
+	}
 	return
 }

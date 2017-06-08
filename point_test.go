@@ -1,6 +1,7 @@
 package bkdtree
 
 import (
+	"bytes"
 	"math/rand"
 	"os"
 	"testing"
@@ -41,6 +42,42 @@ func TestIsInside(t *testing.T) {
 		res := tc.point.Inside(tc.lowPoint, tc.highPoint)
 		if res != tc.isInside {
 			t.Fatalf("case %v failed\n", i)
+		}
+	}
+}
+
+type CaseCodec struct {
+	point       Point
+	numDims     int
+	bytesPerDim int
+	bytesP      []byte
+}
+
+func TestPointCodec(t *testing.T) {
+	cases := []CaseCodec{
+		{
+			Point{[]uint64{6, 92, 68}, 8},
+			3,
+			4,
+			[]byte{0x0, 0x0, 0x0, 0x6, 0x0, 0x0, 0x0, 0x5c, 0x0, 0x0, 0x0, 0x44, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
+		},
+		{
+			Point{[]uint64{6, 92, 68}, 256},
+			3,
+			4,
+			[]byte{0x0, 0x0, 0x0, 0x6, 0x0, 0x0, 0x0, 0x5c, 0x0, 0x0, 0x0, 0x44, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0x0},
+		},
+	}
+
+	for i, tc := range cases {
+		bytesP := tc.point.Encode(tc.bytesPerDim)
+		if !bytes.Equal(bytesP, tc.bytesP) {
+			t.Fatalf("point %d Encode as %v", i, bytesP)
+		}
+		var point Point
+		err := point.Decode(tc.bytesP, tc.numDims, tc.bytesPerDim)
+		if err != nil || !point.Equal(tc.point) {
+			t.Fatalf("point %d Decode as %v, err %v", i, point, err)
 		}
 	}
 }
@@ -92,7 +129,7 @@ func TestPointArrayExt_ToMem(t *testing.T) {
 	for i := 0; i < len(pam.points); i++ {
 		p1, p2 := pam.points[i], pam2.points[i]
 		if !p1.Equal(p2) {
-			t.Fatalf("point content changes after convertion: %v %v", p1, p2)
+			t.Fatalf("point %d changes after convertion: %v %v", i, p1, p2)
 		}
 	}
 
@@ -116,6 +153,7 @@ func areSmaePoints(lhs, rhs []Point, numDims int) (res bool) {
 			return
 		}
 	}
+	res = true
 	return
 }
 
