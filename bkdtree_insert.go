@@ -11,12 +11,12 @@ import (
 
 //Insert inserts given point. Fail if the tree is full.
 func (bkd *BkdTree) Insert(point Point) (err error) {
-	if bkd.numPoints >= bkd.bkdCap {
+	if bkd.NumPoints >= bkd.BkdCap {
 		return errors.New("BKDTree is full")
 	}
 	//insert into in-memory buffer t0m. If t0m is not full, return.
 	bkd.t0m = append(bkd.t0m, point)
-	bkd.numPoints++
+	bkd.NumPoints++
 	if len(bkd.t0m) < bkd.t0mCap {
 		return
 	}
@@ -252,9 +252,9 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end, depth int) (offse
 	}
 
 	node := &KdTreeExtIntraNode{
-		splitDim:    uint32(splitDim),
-		numStrips:   uint32(numStrips),
-		splitValues: splitValues,
+		SplitDim:    uint32(splitDim),
+		NumStrips:   uint32(numStrips),
+		SplitValues: splitValues,
 		Children:    children,
 	}
 	err = node.Write(tmpF)

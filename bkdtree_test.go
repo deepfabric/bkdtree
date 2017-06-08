@@ -29,19 +29,19 @@ func TestBkdInsert(t *testing.T) {
 		if err != nil {
 			t.Fatalf("bkd.Insert failed, i=%v, err: %v", i, err)
 		}
-		if bkd.numPoints != i+1 {
-			t.Fatalf("incorrect numPoints. numPoints=%v, i=%v", bkd.numPoints, i)
+		if bkd.NumPoints != i+1 {
+			t.Fatalf("incorrect numPoints. numPoints=%v, i=%v", bkd.NumPoints, i)
 		}
-		remained := bkd.numPoints % bkd.t0mCap
-		quotient := bkd.numPoints / bkd.t0mCap
+		remained := bkd.NumPoints % bkd.t0mCap
+		quotient := bkd.NumPoints / bkd.t0mCap
 		if len(bkd.t0m) != remained {
-			t.Fatalf("bkd.numPoints %d, len(bkd.t0m) %d is incorect, want %d", bkd.numPoints, len(bkd.t0m), remained)
+			t.Fatalf("bkd.numPoints %d, len(bkd.t0m) %d is incorect, want %d", bkd.NumPoints, len(bkd.t0m), remained)
 		}
 		for i := 0; i < len(bkd.trees); i++ {
 			tiCap := bkd.t0mCap << uint(i)
 			want := tiCap * (quotient % 2)
 			if bkd.trees[i].numPoints != uint64(want) {
-				t.Fatalf("bkd.numPoints %d, bkd.tree[%d].numPoints %d is incorrect, want %d", bkd.numPoints, i, bkd.trees[i].numPoints, want)
+				t.Fatalf("bkd.numPoints %d, bkd.tree[%d].numPoints %d is incorrect, want %d", bkd.NumPoints, i, bkd.trees[i].numPoints, want)
 			}
 			quotient >>= 1
 		}
@@ -163,8 +163,8 @@ func TestBkdErase(t *testing.T) {
 		t.Fatalf("%v", err)
 	} else if !found {
 		t.Fatalf("point %v not found", target)
-	} else if bkd.numPoints != len(points)-1 {
-		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.numPoints, len(points)-1)
+	} else if bkd.NumPoints != len(points)-1 {
+		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.NumPoints, len(points)-1)
 	}
 	cnt, err = countPoint(bkd, target)
 	if err != nil {
@@ -177,8 +177,8 @@ func TestBkdErase(t *testing.T) {
 	err = bkd.Insert(target)
 	if err != nil {
 		t.Fatalf("bkd.Insert failed, err: %v", err)
-	} else if bkd.numPoints != len(points) {
-		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.numPoints, len(points))
+	} else if bkd.NumPoints != len(points) {
+		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.NumPoints, len(points))
 	}
 	cnt, err = countPoint(bkd, target)
 	if err != nil {

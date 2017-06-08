@@ -6,59 +6,17 @@ import (
 )
 
 type KdTreeExtNodeInfo struct {
-	Offset    uint64 //offset in file. It's a leaf if less than idxBegin, otherwise an intra node.
+	Offset    uint64 //offset in file. It's a leaf if less than pointOffEnd, otherwise an intra node.
 	NumPoints uint64 //number of points of subtree rooted at this node
 }
 
 const KdTreeExtNodeInfoSize int64 = 8 + 8
 
 type KdTreeExtIntraNode struct {
-	splitDim    uint32
-	numStrips   uint32
-	splitValues []uint64
+	SplitDim    uint32
+	NumStrips   uint32
+	SplitValues []uint64
 	Children    []KdTreeExtNodeInfo
-}
-
-func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
-	//According to https://golang.org/pkg/encoding/binary/#Read,
-	//"Data must be a pointer to a fixed-size value or a slice of fixed-size values."
-	//Slice shall be adjusted to the expected length before calling binary.Read().
-	err = binary.Read(r, binary.BigEndian, &n.splitDim)
-	if err != nil {
-		return
-	}
-	err = binary.Read(r, binary.BigEndian, &n.numStrips)
-	if err != nil {
-		return
-	}
-	n.splitValues = make([]uint64, n.numStrips-1)
-	err = binary.Read(r, binary.BigEndian, &n.splitValues)
-	if err != nil {
-		return
-	}
-	n.Children = make([]KdTreeExtNodeInfo, n.numStrips)
-	err = binary.Read(r, binary.BigEndian, &n.Children) //TODO: why n.children doesn't work?
-	return
-}
-
-func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
-	//According to https://golang.org/pkg/encoding/binary/#Write,
-	//"Data must be a fixed-size value or a slice of fixed-size values, or a pointer to such data."
-	//Structs with slice members can not be used with binary.Write. Slice members shall be write explictly.
-	err = binary.Write(w, binary.BigEndian, &n.splitDim)
-	if err != nil {
-		return
-	}
-	err = binary.Write(w, binary.BigEndian, &n.numStrips)
-	if err != nil {
-		return
-	}
-	err = binary.Write(w, binary.BigEndian, &n.splitValues)
-	if err != nil {
-		return
-	}
-	err = binary.Write(w, binary.BigEndian, &n.Children)
-	return
 }
 
 /**
@@ -84,8 +42,9 @@ type KdTreeExtMeta struct {
 //KdTreeExtMetaSize is sizeof(KdTreeExtMeta)
 const KdTreeExtMetaSize int64 = 8*3 + 4 + 4
 
+//BkdTree is a BKD tree
 type BkdTree struct {
-	bkdCap      int // N in the paper. len(trees) shall be no larger than math.log2(bkdCap/t0mCap)
+	BkdCap      int // N in the paper
 	t0mCap      int // M in the paper, the capacity of in-memory buffer
 	numDims     int // number of point dimensions
 	bytesPerDim int // number of bytes of each encoded dimension
@@ -94,9 +53,51 @@ type BkdTree struct {
 	intraCap    int    // limit of children of a intra node can hold
 	dir         string //directory of files which hold the persisted kdtrees
 	prefix      string //prefix of file names
-	numPoints   int
+	NumPoints   int
 	t0m         []Point         // T0M in the paper, in-memory buffer.
 	trees       []KdTreeExtMeta //persisted kdtrees
+}
+
+func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
+	//According to https://golang.org/pkg/encoding/binary/#Read,
+	//"Data must be a pointer to a fixed-size value or a slice of fixed-size values."
+	//Slice shall be adjusted to the expected length before calling binary.Read().
+	err = binary.Read(r, binary.BigEndian, &n.SplitDim)
+	if err != nil {
+		return
+	}
+	err = binary.Read(r, binary.BigEndian, &n.NumStrips)
+	if err != nil {
+		return
+	}
+	n.SplitValues = make([]uint64, n.NumStrips-1)
+	err = binary.Read(r, binary.BigEndian, &n.SplitValues)
+	if err != nil {
+		return
+	}
+	n.Children = make([]KdTreeExtNodeInfo, n.NumStrips)
+	err = binary.Read(r, binary.BigEndian, &n.Children) //TODO: why n.children doesn't work?
+	return
+}
+
+func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
+	//According to https://golang.org/pkg/encoding/binary/#Write,
+	//"Data must be a fixed-size value or a slice of fixed-size values, or a pointer to such data."
+	//Structs with slice members can not be used with binary.Write. Slice members shall be write explictly.
+	err = binary.Write(w, binary.BigEndian, &n.SplitDim)
+	if err != nil {
+		return
+	}
+	err = binary.Write(w, binary.BigEndian, &n.NumStrips)
+	if err != nil {
+		return
+	}
+	err = binary.Write(w, binary.BigEndian, &n.SplitValues)
+	if err != nil {
+		return
+	}
+	err = binary.Write(w, binary.BigEndian, &n.Children)
+	return
 }
 
 //NewBkdTree creates a BKDTree
@@ -106,7 +107,7 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		return
 	}
 	bkd = &BkdTree{
-		bkdCap:      bkdCap,
+		BkdCap:      bkdCap,
 		t0mCap:      t0mCap,
 		numDims:     numDims,
 		bytesPerDim: bytesPerDim,
