@@ -96,11 +96,18 @@ func TestBkdIntersect(t *testing.T) {
 	if len(visitor.points) <= 0 {
 		t.Errorf("found 0 matchs, however some expected")
 	}
+	var matched int
 	for _, point := range visitor.points {
 		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
 		}
+		if point.Equal(lowPoint) {
+			matched++
+		}
+	}
+	if matched != 1 {
+		t.Errorf("found %d points equal to %v", matched, lowPoint)
 	}
 
 	//all intersect

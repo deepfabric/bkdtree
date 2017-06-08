@@ -42,7 +42,7 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 		return
 	}
 	fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, idx))
-	f, err := os.Open(fp)
+	f, err := os.OpenFile(fp, os.O_RDWR, 0600)
 	if err != nil {
 		return
 	}
@@ -67,11 +67,7 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 }
 
 func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, nodeOffset int64) (found bool, err error) {
-	if nodeOffset < 0 {
-		_, err = f.Seek(nodeOffset, 2)
-	} else {
-		_, err = f.Seek(nodeOffset, 0)
-	}
+	_, err = f.Seek(nodeOffset, 0)
 	if err != nil {
 		return
 	}
@@ -80,8 +76,7 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 	if err != nil {
 		return
 	}
-	var idx int
-	for i, child := range node.Children {
+	for _, child := range node.Children {
 		if child.NumPoints <= 0 {
 			continue
 		}
@@ -105,17 +100,16 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 			return
 		}
 		if found {
-			idx = i
 			child.NumPoints--
 			break
 		}
 	}
 	if found {
-		_, err = f.Seek(-int64(int(node.numStrips)-idx)*KdTreeExtNodeInfoSize, 1)
+		_, err = f.Seek(nodeOffset, 0)
 		if err != nil {
 			return
 		}
-		err = binary.Write(f, binary.BigEndian, node.Children[idx])
+		err = node.Write(f)
 	}
 	return
 }
