@@ -9,7 +9,7 @@ import (
 //Intersect does window query
 func (bkd *BkdTree) Intersect(visitor IntersectVisitor) (err error) {
 	bkd.intersectT0M(visitor)
-	for i := 0; i <= len(bkd.trees); i++ {
+	for i := 0; i < len(bkd.trees); i++ {
 		err = bkd.intersectTi(visitor, i)
 		if err != nil {
 			return
