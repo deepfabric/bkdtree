@@ -3,6 +3,8 @@ package bkdtree
 import (
 	"encoding/binary"
 	"io"
+	"os"
+	"syscall"
 )
 
 type KdTreeExtNodeInfo struct {
@@ -40,7 +42,13 @@ type KdTreeExtMeta struct {
 }
 
 //KdTreeExtMetaSize is sizeof(KdTreeExtMeta)
-const KdTreeExtMetaSize int64 = 8*3 + 4 + 4
+const KdTreeExtMetaSize int = 8*3 + 4 + 4
+
+type BkdSubTree struct {
+	meta KdTreeExtMeta
+	f    *os.File
+	data []byte //file content via mmap
+}
 
 //BkdTree is a BKD tree
 type BkdTree struct {
@@ -54,8 +62,8 @@ type BkdTree struct {
 	dir         string //directory of files which hold the persisted kdtrees
 	prefix      string //prefix of file names
 	NumPoints   int
-	t0m         []Point         // T0M in the paper, in-memory buffer.
-	trees       []KdTreeExtMeta //persisted kdtrees
+	t0m         []Point // T0M in the paper, in-memory buffer.
+	trees       []BkdSubTree
 }
 
 func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
@@ -118,7 +126,23 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		dir:         dir,
 		prefix:      prefix,
 		t0m:         make([]Point, 0, t0mCap),
-		trees:       make([]KdTreeExtMeta, 0),
+		trees:       make([]BkdSubTree, 0),
 	}
+	return
+}
+
+//https://medium.com/@arpith/adventures-with-mmap-463b33405223
+func mmapFile(f *os.File) (data []byte, err error) {
+	info, err1 := f.Stat()
+	if err1 != nil {
+		err = err1
+		return
+	}
+	data, err = syscall.Mmap(int(f.Fd()), 0, int(info.Size()), int(info.Mode()), syscall.MAP_SHARED)
+	return
+}
+
+func munmapFile(data []byte) (err error) {
+	err = syscall.Munmap(data)
 	return
 }

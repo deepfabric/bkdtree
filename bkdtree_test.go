@@ -42,8 +42,8 @@ func TestBkdInsert(t *testing.T) {
 		for i := 0; i < len(bkd.trees); i++ {
 			tiCap := bkd.t0mCap << uint(i)
 			want := tiCap * (quotient % 2)
-			if bkd.trees[i].numPoints != uint64(want) {
-				t.Fatalf("bkd.numPoints %d, bkd.tree[%d].numPoints %d is incorrect, want %d", bkd.NumPoints, i, bkd.trees[i].numPoints, want)
+			if bkd.trees[i].meta.numPoints != uint64(want) {
+				t.Fatalf("bkd.numPoints %d, bkd.tree[%d].numPoints %d is incorrect, want %d", bkd.NumPoints, i, bkd.trees[i].meta.numPoints, want)
 			}
 			quotient >>= 1
 		}

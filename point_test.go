@@ -113,14 +113,8 @@ func TestPointArrayExt_ToMem(t *testing.T) {
 	defer tmpF.Close()
 
 	bytesPerDim := 4
-	pae, err := pam.ToExt(tmpF, bytesPerDim)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	pam2, err := pae.ToMem()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
+	pae := pam.ToExt(bytesPerDim)
+	pam2 := pae.ToMem()
 	if pam.byDim != pam2.byDim {
 		t.Fatalf("point array meta info changes after convertion")
 	}
@@ -133,7 +127,6 @@ func TestPointArrayExt_ToMem(t *testing.T) {
 			t.Fatalf("point %d changes after convertion: %v %v", i, p1, p2)
 		}
 	}
-
 }
 
 //verify if lhs and rhs contains the same points. order doesn't matter.
@@ -219,27 +212,15 @@ func TestSplitPoints(t *testing.T) {
 	}
 
 	//test SplitPoints(PointArrayExt)
-	tmpFp := "/tmp/point_test"
-	tmpF, err := os.OpenFile(tmpFp, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer tmpF.Close()
 	bytesPerDim := 4
 	for dim := 0; dim < numDims; dim++ {
 		pam := &PointArrayMem{
 			points: points,
 			byDim:  dim,
 		}
-		pae, err := pam.ToExt(tmpF, bytesPerDim)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
+		pae := pam.ToExt(bytesPerDim)
 		splitValues, splitPoses := SplitPoints(pae, numStrips)
-		pam2, err := pae.ToMem()
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
+		pam2 := pae.ToMem()
 		verifySplit(t, pam2, numStrips, splitValues, splitPoses)
 		if !areSmaePoints(pam.points, pam2.points, numDims) {
 			t.Fatalf("point set changes after split")

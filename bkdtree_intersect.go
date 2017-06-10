@@ -1,9 +1,7 @@
 package bkdtree
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
+	"bytes"
 )
 
 //Intersect does window query
@@ -30,36 +28,22 @@ func (bkd *BkdTree) intersectT0M(visitor IntersectVisitor) {
 }
 
 func (bkd *BkdTree) intersectTi(visitor IntersectVisitor, idx int) (err error) {
-	if bkd.trees[idx].numPoints <= 0 {
+	if bkd.trees[idx].meta.numPoints <= 0 {
 		return
 	}
-	fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, idx))
-	f, err := os.Open(fp)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
 	//depth-first visiting from the root node
-	meta := &bkd.trees[idx]
-	err = bkd.intersectNode(visitor, f, meta, int64(meta.rootOff))
+	meta := &bkd.trees[idx].meta
+	err = bkd.intersectNode(visitor, bkd.trees[idx].data, meta, int(meta.rootOff))
 	return
 }
 
-func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
-	meta *KdTreeExtMeta, nodeOffset int64) (err error) {
+func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, data []byte,
+	meta *KdTreeExtMeta, nodeOffset int) (err error) {
 	lowP := visitor.GetLowPoint()
 	highP := visitor.GetHighPoint()
-	if nodeOffset < 0 {
-		_, err = f.Seek(nodeOffset, 2)
-	} else {
-		_, err = f.Seek(nodeOffset, 0)
-	}
-	if err != nil {
-		return
-	}
 	var node KdTreeExtIntraNode
-	err = node.Read(f)
+	bf := bytes.NewBuffer(data[nodeOffset:])
+	err = node.Read(bf)
 	if err != nil {
 		return
 	}
@@ -70,8 +54,7 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 		if child.Offset < meta.pointsOffEnd {
 			//leaf node
 			pae := PointArrayExt{
-				f:           f,
-				offBegin:    int64(child.Offset),
+				data:        data[int(child.Offset):],
 				numPoints:   int(child.NumPoints),
 				byDim:       0, //not used
 				bytesPerDim: bkd.bytesPerDim,
@@ -79,18 +62,14 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, f *os.File,
 				pointSize:   bkd.pointSize,
 			}
 			for i := 0; i < pae.numPoints; i++ {
-				point, err1 := pae.GetPoint(i)
-				if err1 != nil {
-					err = err1
-					return
-				}
+				point := pae.GetPoint(i)
 				if point.Inside(lowP, highP) {
 					visitor.VisitPoint(point)
 				}
 			}
 		} else {
 			//intra node
-			err = bkd.intersectNode(visitor, f, meta, int64(child.Offset))
+			err = bkd.intersectNode(visitor, data, meta, int(child.Offset))
 		}
 		if err != nil {
 			return

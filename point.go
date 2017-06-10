@@ -1,12 +1,8 @@
 package bkdtree
 
 import (
-	"bytes"
 	"encoding/binary"
-	"os"
 	"sort"
-
-	"fmt"
 
 	"github.com/keegancsmith/nth"
 )
@@ -18,10 +14,10 @@ type Point struct {
 
 type PointArray interface {
 	sort.Interface
-	GetPoint(idx int) (Point, error)
-	GetValue(idx int) (uint64, error)
+	GetPoint(idx int) Point
+	GetValue(idx int) uint64
 	SubArray(begin, end int) PointArray
-	Erase(point Point) (bool, error)
+	Erase(point Point) bool
 }
 
 type PointArrayMem struct {
@@ -30,8 +26,7 @@ type PointArrayMem struct {
 }
 
 type PointArrayExt struct {
-	f           *os.File
-	offBegin    int64
+	data        []byte
 	numPoints   int
 	byDim       int
 	bytesPerDim int
@@ -115,12 +110,12 @@ func (s *PointArrayMem) Less(i, j int) bool {
 	return s.points[i].Vals[s.byDim] < s.points[j].Vals[s.byDim]
 }
 
-func (s *PointArrayMem) GetPoint(idx int) (point Point, err error) {
+func (s *PointArrayMem) GetPoint(idx int) (point Point) {
 	point = s.points[idx]
 	return
 }
 
-func (s *PointArrayMem) GetValue(idx int) (val uint64, err error) {
+func (s *PointArrayMem) GetValue(idx int) (val uint64) {
 	val = s.points[idx].Vals[s.byDim]
 	return
 }
@@ -133,7 +128,7 @@ func (s *PointArrayMem) SubArray(begin, end int) (sub PointArray) {
 	return
 }
 
-func (s *PointArrayMem) Erase(point Point) (found bool, err error) {
+func (s *PointArrayMem) Erase(point Point) (found bool) {
 	idx := 0
 	for i, point2 := range s.points {
 		//assumes each point's userData is unique
@@ -149,34 +144,21 @@ func (s *PointArrayMem) Erase(point Point) (found bool, err error) {
 	return
 }
 
-func (s *PointArrayMem) ToExt(f *os.File, bytesPerDim int) (pae *PointArrayExt, err error) {
-	if len(s.points) == 0 {
-		err = fmt.Errorf("cannot determine numDims for empty PointArrayMem")
-		return
-	}
+func (s *PointArrayMem) ToExt(bytesPerDim int) (pae *PointArrayExt) {
 	numDims := len(s.points[0].Vals)
 	pointSize := numDims*bytesPerDim + 8
-	offBegin, err1 := f.Seek(0, 1)
-	if err1 != nil {
-		err = err1
-		return
-	}
+	size := len(s.points) * pointSize
+	data := make([]byte, size)
 	pae = &PointArrayExt{
-		f:           f,
-		offBegin:    offBegin,
+		data:        data,
 		numPoints:   len(s.points),
 		byDim:       s.byDim,
 		numDims:     numDims,
 		bytesPerDim: bytesPerDim,
 		pointSize:   pointSize,
 	}
-	b := make([]byte, pointSize)
-	for _, point := range s.points {
-		point.Encode(b, bytesPerDim)
-		_, err = f.Write(b)
-		if err != nil {
-			return
-		}
+	for i, point := range s.points {
+		point.Encode(data[i*pointSize:], bytesPerDim)
 	}
 	return
 }
@@ -188,78 +170,43 @@ func (s *PointArrayExt) Len() int {
 
 // Swap is part of sort.Interface.
 func (s *PointArrayExt) Swap(i, j int) {
-	//TODO: optimize via mmap?
-	pi := make([]byte, s.pointSize)
-	pj := make([]byte, s.pointSize)
-	offI := s.offBegin + int64(i*s.pointSize)
-	offJ := s.offBegin + int64(j*s.pointSize)
-	if _, err := s.f.ReadAt(pi, offI); err != nil {
-		panic(err)
-	}
-	if _, err := s.f.ReadAt(pj, offJ); err != nil {
-		panic(err)
-	}
-	if _, err := s.f.WriteAt(pi, offJ); err != nil {
-		panic(err)
-	}
-	if _, err := s.f.WriteAt(pj, offI); err != nil {
-		panic(err)
+	offI := i * s.pointSize
+	offJ := j * s.pointSize
+	for idx := 0; idx < s.pointSize; idx++ {
+		s.data[offI+idx], s.data[offJ+idx] = s.data[offJ+idx], s.data[offI+idx]
 	}
 }
 
 // Less is part of sort.Interface.
 func (s *PointArrayExt) Less(i, j int) bool {
-	pi := make([]byte, s.pointSize)
-	pj := make([]byte, s.pointSize)
-	offI := s.offBegin + int64(i*s.pointSize)
-	offJ := s.offBegin + int64(j*s.pointSize)
-	if _, err := s.f.ReadAt(pi, offI); err != nil {
-		panic(err)
-	}
-	if _, err := s.f.ReadAt(pj, offJ); err != nil {
-		panic(err)
-	}
-	for idx := s.byDim * s.bytesPerDim; idx < (s.byDim+1)*s.bytesPerDim; idx++ {
-		if pi[idx] > pj[idx] {
-			return false
-		}
-	}
-	return true
+	valI := s.GetValue(i)
+	valJ := s.GetValue(j)
+	return valI < valJ
 }
 
-func (s *PointArrayExt) GetPoint(idx int) (point Point, err error) {
-	pi := make([]byte, s.pointSize)
-	offI := s.offBegin + int64(idx*s.pointSize)
-	if _, err = s.f.ReadAt(pi, offI); err != nil {
-		return
-	}
-	point.Decode(pi, s.numDims, s.bytesPerDim)
+func (s *PointArrayExt) GetPoint(i int) (point Point) {
+	point.Decode(s.data[i*s.pointSize:], s.numDims, s.bytesPerDim)
 	return
 }
 
-func (s *PointArrayExt) GetValue(idx int) (val uint64, err error) {
-	b := make([]byte, s.pointSize)
-	offI := s.offBegin + int64(idx*s.pointSize)
-	if _, err = s.f.ReadAt(b, offI); err != nil {
-		return
-	}
+func (s *PointArrayExt) GetValue(i int) (val uint64) {
+	offI := i * s.pointSize
 	switch s.bytesPerDim {
 	case 1:
-		val = uint64(b[s.byDim])
+		val = uint64(s.data[offI+s.byDim])
 	case 2:
-		val = uint64(binary.BigEndian.Uint16(b[2*s.byDim:]))
+		val = uint64(binary.BigEndian.Uint16(s.data[offI+2*s.byDim:]))
 	case 4:
-		val = uint64(binary.BigEndian.Uint32(b[4*s.byDim:]))
+		val = uint64(binary.BigEndian.Uint32(s.data[offI+4*s.byDim:]))
 	case 8:
-		val = binary.BigEndian.Uint64(b[8*s.byDim:])
+		val = binary.BigEndian.Uint64(s.data[offI+8*s.byDim:])
 	}
 	return
 }
 
 func (s *PointArrayExt) SubArray(begin, end int) (sub PointArray) {
 	sub = &PointArrayExt{
-		f:           s.f,
-		offBegin:    s.offBegin + int64(begin*s.pointSize),
+		data:        s.data[begin*s.pointSize : end*s.pointSize],
 		numPoints:   end - begin,
 		byDim:       s.byDim,
 		bytesPerDim: s.bytesPerDim,
@@ -269,50 +216,33 @@ func (s *PointArrayExt) SubArray(begin, end int) (sub PointArray) {
 	return
 }
 
-func (s *PointArrayExt) Erase(point Point) (found bool, err error) {
-	b := make([]byte, s.pointSize)
-	point.Encode(b, s.bytesPerDim)
-	var off int64
-	for off = s.offBegin; off < s.offBegin+int64(s.numPoints*s.pointSize); off += int64(s.pointSize) {
-		pi := make([]byte, s.pointSize)
-		_, err = s.f.ReadAt(pi, off)
-		if err != nil {
-			return
-		}
-		found = bytes.Equal(b, pi)
+func (s *PointArrayExt) Erase(point Point) (found bool) {
+	var i int
+	for i = 0; i < s.numPoints; i++ {
+		pI := s.GetPoint(i)
+		//assumes each point's userData is unique
+		found = point.Equal(pI)
 		if found {
 			break
 		}
 	}
 	if found {
 		//replace the matched point with the last point and decrease the array length
-		idxLast := s.numPoints - 1
-		pLast := make([]byte, s.pointSize)
-		offLast := s.offBegin + int64(idxLast*s.pointSize)
-		_, err = s.f.ReadAt(pLast, offLast)
-		if err != nil {
-			return
-		}
-		_, err = s.f.WriteAt(pLast, off)
-		if err != nil {
-			return
+		offI := i * s.pointSize
+		offJ := (s.numPoints - 1) * s.pointSize
+		for idx := 0; idx < s.pointSize; idx++ {
+			s.data[offI+idx] = s.data[offJ+idx]
 		}
 		s.numPoints--
 	}
 	return
 }
 
-func (s *PointArrayExt) ToMem() (pam *PointArrayMem, err error) {
+func (s *PointArrayExt) ToMem() (pam *PointArrayMem) {
 	points := make([]Point, 0, s.numPoints)
-	var p Point
-	pi := make([]byte, s.pointSize)
-	for off := s.offBegin; off < s.offBegin+int64(s.numPoints*s.pointSize); off += int64(s.pointSize) {
-		_, err = s.f.ReadAt(pi, off)
-		if err != nil {
-			return
-		}
-		p.Decode(pi, s.numDims, s.bytesPerDim)
-		points = append(points, p)
+	for i := 0; i < s.numPoints; i++ {
+		p := s.GetPoint(i)
+		points[i] = p
 	}
 	pam = &PointArrayMem{
 		points: points,
@@ -328,10 +258,7 @@ func SplitPoints(points PointArray, numStrips int) (splitValues []uint64, splitP
 	}
 	splitPos := points.Len() / 2
 	nth.Element(points, splitPos)
-	splitValue, err := points.GetValue(splitPos)
-	if err != nil {
-		panic("points.GetValue error")
-	}
+	splitValue := points.GetValue(splitPos)
 
 	numStrips1 := (numStrips + 1) / 2
 	numStrips2 := numStrips - numStrips1

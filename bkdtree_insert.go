@@ -1,10 +1,10 @@
 package bkdtree
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -24,26 +24,28 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	sum := len(bkd.t0m)
 	var k int
 	for k = 0; k < len(bkd.trees); k++ {
-		if bkd.trees[k].numPoints == 0 {
+		if bkd.trees[k].meta.numPoints == 0 {
 			break
 		}
-		sum += int(bkd.trees[k].numPoints)
+		sum += int(bkd.trees[k].meta.numPoints)
 		capK := bkd.t0mCap << uint(k)
 		if capK >= sum {
 			break
 		}
 	}
 	if k == len(bkd.trees) {
-		kd := KdTreeExtMeta{
-			pointsOffEnd: 0,
-			rootOff:      0,
-			numPoints:    0,
-			leafCap:      uint16(bkd.leafCap),
-			intraCap:     uint16(bkd.intraCap),
-			numDims:      uint8(bkd.numDims),
-			bytesPerDim:  uint8(bkd.bytesPerDim),
-			pointSize:    uint8(bkd.pointSize),
-			formatVer:    0,
+		kd := BkdSubTree{
+			meta: KdTreeExtMeta{
+				pointsOffEnd: 0,
+				rootOff:      0,
+				numPoints:    0,
+				leafCap:      uint16(bkd.leafCap),
+				intraCap:     uint16(bkd.intraCap),
+				numDims:      uint8(bkd.numDims),
+				bytesPerDim:  uint8(bkd.bytesPerDim),
+				pointSize:    uint8(bkd.pointSize),
+				formatVer:    0,
+			},
 		}
 		bkd.trees = append(bkd.trees, kd)
 	}
@@ -54,6 +56,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	if err != nil {
 		return
 	}
+	defer tmpFK.Close()
 
 	err = bkd.extractT0M(tmpFK)
 	if err != nil {
@@ -73,21 +76,33 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	//empty T0M and Ti, 0<=i<k
 	bkd.t0m = make([]Point, 0, bkd.t0mCap)
 	for i := 0; i <= k; i++ {
-		if bkd.trees[i].numPoints <= 0 {
+		if bkd.trees[i].meta.numPoints <= 0 {
 			continue
-		}
-		fpI := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, i))
-		err = os.Remove(fpI)
-		if err != nil {
+		} else if err = munmapFile(bkd.trees[i].data); err != nil {
+			return
+		} else if err = bkd.trees[i].f.Close(); err != nil {
+			return
+		} else if err = os.Remove(bkd.trees[i].f.Name()); err != nil {
 			return
 		}
-		bkd.trees[i].numPoints = 0
+		bkd.trees[i].meta.numPoints = 0
 	}
-	err = os.Rename(tmpFpK, fpK) //TODO: what happen if tmpF is open?
+	if err = os.Rename(tmpFpK, fpK); err != nil {
+		return
+	}
+	fK, err := os.OpenFile(fpK, os.O_RDWR, 0600)
 	if err != nil {
 		return
 	}
-	bkd.trees[k] = *meta
+	data, err := mmapFile(fK)
+	if err != nil {
+		return
+	}
+	bkd.trees[k] = BkdSubTree{
+		meta: *meta,
+		f:    fK,
+		data: data,
+	}
 	return
 }
 
@@ -104,7 +119,7 @@ func (bkd *BkdTree) extractT0M(tmpF *os.File) (err error) {
 }
 
 func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
-	if bkd.trees[idx].numPoints <= 0 {
+	if bkd.trees[idx].meta.numPoints <= 0 {
 		return
 	}
 	fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, idx))
@@ -115,41 +130,29 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 	defer srcF.Close()
 
 	//depth-first extracting from the root node
-	meta := &bkd.trees[idx]
-	err = bkd.extractNode(dstF, srcF, meta, int64(meta.rootOff))
+	meta := &bkd.trees[idx].meta
+	err = bkd.extractNode(dstF, bkd.trees[idx].data, meta, int(meta.rootOff))
 	return
 }
 
-func (bkd *BkdTree) extractNode(dstF, srcF *os.File, meta *KdTreeExtMeta, nodeOffset int64) (err error) {
-	if nodeOffset < 0 {
-		err = fmt.Errorf("invalid nodeOffset %d", nodeOffset)
-		return
-	}
-	_, err = srcF.Seek(nodeOffset, 0)
-	if err != nil {
-		return
-	}
+func (bkd *BkdTree) extractNode(dstF *os.File, data []byte, meta *KdTreeExtMeta, nodeOffset int) (err error) {
 	var node KdTreeExtIntraNode
-	err = node.Read(srcF)
+	bf := bytes.NewBuffer(data[nodeOffset:])
+	err = node.Read(bf)
 	if err != nil {
 		return
 	}
 	for _, child := range node.Children {
 		if child.Offset < meta.pointsOffEnd {
 			//leaf node
-			//TODO: use Linux syscall.Splice() instead?
-			_, err = srcF.Seek(int64(child.Offset), 0)
-			if err != nil {
-				return
-			}
-			length := int64(child.NumPoints) * int64(meta.pointSize)
-			_, err = io.CopyN(dstF, srcF, length)
+			length := int(child.NumPoints) * int(meta.pointSize)
+			_, err = dstF.Write(data[int(child.Offset) : int(child.Offset)+length])
 			if err != nil {
 				return
 			}
 		} else {
 			//intra node
-			err = bkd.extractNode(dstF, srcF, meta, int64(child.Offset))
+			err = bkd.extractNode(dstF, data, meta, int(child.Offset))
 			if err != nil {
 				return
 			}
@@ -163,8 +166,14 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	if err != nil {
 		return
 	}
+	var data []byte
+	if data, err = mmapFile(tmpF); err != nil {
+		return
+	}
+	defer munmapFile(data)
+
 	numPoints := int(pointsOffEnd / int64(bkd.pointSize))
-	rootOff, err1 := bkd.createKdTreeExt(tmpF, 0, numPoints, 0)
+	rootOff, err1 := bkd.createKdTreeExt(tmpF, data, 0, numPoints, 0)
 	if err1 != nil {
 		err = err1
 		return
@@ -182,10 +191,6 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 		formatVer:    0,
 	}
 	err = binary.Write(tmpF, binary.BigEndian, meta)
-	if err != nil {
-		return
-	}
-	err = tmpF.Close()
 	return
 }
 
@@ -194,7 +199,7 @@ func getCurrentOffset(f *os.File) (offset int64, err error) {
 	return
 }
 
-func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end, depth int) (offset int64, err error) {
+func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, data []byte, begin, end, depth int) (offset int64, err error) {
 	if begin >= end {
 		err = fmt.Errorf("assertion begin>=end failed, begin %v, end %v", begin, end)
 		return
@@ -207,8 +212,7 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end, depth int) (offse
 	}
 
 	pae := PointArrayExt{
-		f:           tmpF,
-		offBegin:    int64(begin * bkd.pointSize),
+		data:        data[begin*bkd.pointSize:],
 		numPoints:   end - begin,
 		byDim:       splitDim,
 		bytesPerDim: bkd.bytesPerDim,
@@ -235,7 +239,7 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, begin, end, depth int) (offse
 			}
 			children = append(children, info)
 		} else {
-			childOffset, err = bkd.createKdTreeExt(tmpF, posBegin, posEnd, depth+1)
+			childOffset, err = bkd.createKdTreeExt(tmpF, data, posBegin, posEnd, depth+1)
 			if err != nil {
 				return
 			}

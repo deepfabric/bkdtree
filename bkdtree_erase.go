@@ -1,10 +1,8 @@
 package bkdtree
 
 import (
+	"bytes"
 	"encoding/binary"
-	"fmt"
-	"os"
-	"path/filepath"
 )
 
 //Erase erases given point.
@@ -14,10 +12,8 @@ func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 		points: bkd.t0m,
 		byDim:  0,
 	}
-	found, err = pam.Erase(point)
-	if err != nil {
-		return
-	} else if found {
+	found = pam.Erase(point)
+	if found {
 		bkd.NumPoints--
 		return
 	}
@@ -36,41 +32,29 @@ func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 }
 
 func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
-	if bkd.trees[idx].numPoints <= 0 {
+	if bkd.trees[idx].meta.numPoints <= 0 {
 		return
 	}
-	fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, idx))
-	f, err := os.OpenFile(fp, os.O_RDWR, 0600)
-	if err != nil {
-		return
-	}
-	defer f.Close()
 
 	//depth-first erasing from the root node
-	meta := &bkd.trees[idx]
-	found, err = bkd.eraseNode(point, f, meta, int64(meta.rootOff))
+	meta := &bkd.trees[idx].meta
+	found, err = bkd.eraseNode(point, bkd.trees[idx].data, meta, int(meta.rootOff))
 	if err != nil {
 		return
 	}
 	if found {
-		bkd.trees[idx].numPoints--
-		_, err = f.Seek(-KdTreeExtMetaSize, 2)
-		if err != nil {
-			return
-		}
-		err = binary.Write(f, binary.BigEndian, &bkd.trees[idx])
+		bkd.trees[idx].meta.numPoints--
+		bf := bytes.NewBuffer(bkd.trees[idx].data[len(bkd.trees[idx].data)-KdTreeExtMetaSize:])
+		err = binary.Write(bf, binary.BigEndian, meta)
 		return
 	}
 	return
 }
 
-func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, nodeOffset int64) (found bool, err error) {
-	_, err = f.Seek(nodeOffset, 0)
-	if err != nil {
-		return
-	}
+func (bkd *BkdTree) eraseNode(point Point, data []byte, meta *KdTreeExtMeta, nodeOffset int) (found bool, err error) {
 	var node KdTreeExtIntraNode
-	err = node.Read(f)
+	bf := bytes.NewBuffer(data[nodeOffset:])
+	err = node.Read(bf)
 	if err != nil {
 		return
 	}
@@ -81,18 +65,17 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 		if child.Offset < meta.pointsOffEnd {
 			//leaf node
 			pae := PointArrayExt{
-				f:           f,
-				offBegin:    int64(child.Offset),
+				data:        data[int(child.Offset):],
 				numPoints:   int(child.NumPoints),
 				byDim:       0, //not used
 				bytesPerDim: bkd.bytesPerDim,
 				numDims:     bkd.numDims,
 				pointSize:   bkd.pointSize,
 			}
-			found, err = pae.Erase(point)
+			found = pae.Erase(point)
 		} else {
 			//intra node
-			found, err = bkd.eraseNode(point, f, meta, int64(child.Offset))
+			found, err = bkd.eraseNode(point, data, meta, int(child.Offset))
 		}
 		if err != nil {
 			return
@@ -103,11 +86,7 @@ func (bkd *BkdTree) eraseNode(point Point, f *os.File, meta *KdTreeExtMeta, node
 		}
 	}
 	if found {
-		_, err = f.Seek(nodeOffset, 0)
-		if err != nil {
-			return
-		}
-		err = node.Write(f)
+		err = node.Write(bf)
 	}
 	return
 }
