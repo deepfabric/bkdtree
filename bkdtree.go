@@ -102,7 +102,8 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 
 //NewBkdTree creates a BKDTree
 func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree) {
-	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 || bytesPerDim%4 != 0 ||
+	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 ||
+		(bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) ||
 		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
 		return
 	}

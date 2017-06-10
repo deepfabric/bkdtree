@@ -238,14 +238,20 @@ func (s *PointArrayExt) GetPoint(idx int) (point Point, err error) {
 }
 
 func (s *PointArrayExt) GetValue(idx int) (val uint64, err error) {
-	pi := make([]byte, s.pointSize)
+	b := make([]byte, s.pointSize)
 	offI := s.offBegin + int64(idx*s.pointSize)
-	if _, err = s.f.ReadAt(pi, offI); err != nil {
+	if _, err = s.f.ReadAt(b, offI); err != nil {
 		return
 	}
-	val = 0
-	for i := s.bytesPerDim * s.byDim; i < s.bytesPerDim*(s.byDim+1); i++ {
-		val = val*8 + uint64(pi[i])
+	switch s.bytesPerDim {
+	case 1:
+		val = uint64(b[s.byDim])
+	case 2:
+		val = uint64(binary.BigEndian.Uint16(b[2*s.byDim:]))
+	case 4:
+		val = uint64(binary.BigEndian.Uint32(b[4*s.byDim:]))
+	case 8:
+		val = binary.BigEndian.Uint64(b[8*s.byDim:])
 	}
 	return
 }
