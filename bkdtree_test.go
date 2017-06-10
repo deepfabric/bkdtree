@@ -2,6 +2,8 @@ package bkdtree
 
 import (
 	"testing"
+
+	"github.com/pkg/errors"
 )
 
 func TestBkdInsert(t *testing.T) {
@@ -52,7 +54,7 @@ func TestBkdInsert(t *testing.T) {
 	}
 }
 
-func prepareBkdTree(t *testing.T, maxVal uint64) (bkd *BkdTree, points []Point) {
+func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
 	t0mCap := 1000
 	treesCap := 5
 	bkdCap := t0mCap<<uint(treesCap) - 1
@@ -64,15 +66,17 @@ func prepareBkdTree(t *testing.T, maxVal uint64) (bkd *BkdTree, points []Point) 
 	prefix := "bkd"
 	bkd = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if bkd == nil {
-		t.Fatalf("bkd is nil")
+		err = errors.Errorf("bkd is nil")
+		return
 	}
+	//fmt.Printf("created BkdTree %v\n", bkd)
 
 	size := bkdCap
 	points = NewRandPoints(numDims, maxVal, size)
 	for i := 0; i < bkdCap; i++ {
-		err := bkd.Insert(points[i])
+		err = bkd.Insert(points[i])
 		if err != nil {
-			t.Fatalf("bkd.Insert failed, i=%v, err: %v", i, err)
+			err = errors.Errorf("bkd.Insert failed, i=%v, err: %v", i, err)
 		}
 	}
 	return
@@ -80,10 +84,12 @@ func prepareBkdTree(t *testing.T, maxVal uint64) (bkd *BkdTree, points []Point) 
 
 func TestBkdIntersect(t *testing.T) {
 	var maxVal uint64 = 1000
-	bkd, points := prepareBkdTree(t, maxVal)
+	bkd, points, err := prepareBkdTree(maxVal)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
 	var lowPoint, highPoint Point
 	var visitor *IntersectCollector
-	var err error
 
 	//some intersect
 	lowPoint = points[7]
@@ -91,7 +97,7 @@ func TestBkdIntersect(t *testing.T) {
 	visitor = &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
 	err = bkd.Intersect(visitor)
 	if err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%+v", err)
 	}
 	if len(visitor.points) <= 0 {
 		t.Errorf("found 0 matchs, however some expected")
@@ -116,7 +122,7 @@ func TestBkdIntersect(t *testing.T) {
 	visitor = &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
 	err = bkd.Intersect(visitor)
 	if err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%+v", err)
 	}
 	if len(visitor.points) != len(points) {
 		t.Errorf("found %d matchs, want %d", len(visitor.points), len(points))
@@ -140,11 +146,13 @@ func countPoint(bkd *BkdTree, point Point) (cnt int, err error) {
 
 func TestBkdErase(t *testing.T) {
 	var maxVal uint64 = 1000
-	bkd, points := prepareBkdTree(t, maxVal)
+	bkd, points, err := prepareBkdTree(maxVal)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
 	var target Point
 	var cnt int
 	var found bool
-	var err error
 
 	//erase an non-existing point
 	target = points[17]
@@ -185,5 +193,70 @@ func TestBkdErase(t *testing.T) {
 		t.Fatalf("%v", err)
 	} else if cnt != 1 {
 		t.Errorf("point %v still exists", target)
+	}
+}
+
+func BenchmarkBkdInsert(b *testing.B) {
+	t0mCap := 1000
+	treesCap := 20
+	bkdCap := t0mCap<<uint(treesCap) - 1
+	numDims := 2
+	bytesPerDim := 4
+	leafCap := 50
+	intraCap := 4
+	dir := "/tmp"
+	prefix := "bkd"
+	bkd := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	if bkd == nil {
+		b.Fatalf("bkd is nil")
+	}
+	//fmt.Printf("created BkdTree %v\n", bkd)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := bkd.Insert(Point{[]uint64{uint64(i), uint64(i)}, uint64(i)})
+		if err != nil {
+			b.Fatalf("bkd.Insert failed, i=%v, err: %v", i, err)
+		}
+	}
+	return
+}
+
+func BenchmarkBkdErase(b *testing.B) {
+	var maxVal uint64 = 1000
+	bkd, points, err := prepareBkdTree(maxVal)
+	if err != nil {
+		b.Fatalf("%+v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err = bkd.Erase(points[i])
+		if err != nil {
+			b.Fatalf("%v", err)
+		}
+	}
+}
+
+func BenchmarkBkdIntersect(b *testing.B) {
+	var maxVal uint64 = 1000
+	bkd, points, err := prepareBkdTree(maxVal)
+	if err != nil {
+		b.Fatalf("%+v", err)
+	}
+	var lowPoint, highPoint Point
+	var visitor *IntersectCollector
+	lowPoint = points[7]
+	highPoint = lowPoint
+	visitor = &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err = bkd.Intersect(visitor)
+		if err != nil {
+			b.Fatalf("%v", err)
+		} else if len(visitor.points) <= 0 {
+			b.Errorf("found 0 matchs, however some expected")
+		}
 	}
 }
