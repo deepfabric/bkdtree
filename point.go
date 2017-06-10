@@ -62,59 +62,41 @@ func (p *Point) Equal(rhs Point) (res bool) {
 	return
 }
 
-//TODO: optimize point encoding/decoding
-func (p *Point) Encode(bytesPerDim int) (res []byte) {
+//Encode encode in place. Refers to binary.Write impl in standard library.
+//len(b) shall be no less than bytesPerDim*numDims+8
+func (p *Point) Encode(b []byte, bytesPerDim int) {
 	numDims := len(p.Vals)
-	pointSize := bytesPerDim*numDims + 8
-	res = make([]byte, pointSize)
-	buf := new(bytes.Buffer)
-	idx := 0
-	for dim := 0; dim < numDims; dim++ {
-		val := p.Vals[dim]
-		err := binary.Write(buf, binary.BigEndian, val)
-		if err != nil {
-			return
+	for i := 0; i < numDims; i++ {
+		switch bytesPerDim {
+		case 1:
+			b[i] = byte(p.Vals[i])
+		case 2:
+			binary.BigEndian.PutUint16(b[2*i:], uint16(p.Vals[i]))
+		case 4:
+			binary.BigEndian.PutUint32(b[4*i:], uint32(p.Vals[i]))
+		case 8:
+			binary.BigEndian.PutUint64(b[8*i:], p.Vals[i])
 		}
-		bs := buf.Bytes()
-		for i := 8 - bytesPerDim; i < 8; i++ {
-			res[idx] = bs[i]
-			idx++
-		}
-		buf.Reset()
 	}
-	err := binary.Write(buf, binary.BigEndian, p.UserData)
-	if err != nil {
-		return
-	}
-	bs := buf.Bytes()
-	for i := 0; i < 8; i++ {
-		res[idx] = bs[i]
-		idx++
-	}
+	binary.BigEndian.PutUint64(b[numDims*bytesPerDim:], p.UserData)
 	return
 }
 
-func (p *Point) Decode(bytesP []byte, numDims int, bytesPerDim int) (err error) {
+func (p *Point) Decode(b []byte, numDims int, bytesPerDim int) {
 	p.Vals = make([]uint64, numDims)
-	pointSize := bytesPerDim*numDims + 8
-	if len(bytesP) < pointSize {
-		err = fmt.Errorf("byte array is too short to decode")
-		return
-	}
-	for dim := 0; dim < numDims; dim++ {
-		var val uint64
-		for i := 0; i < bytesPerDim; i++ {
-			val <<= 8
-			val += uint64(bytesP[dim*bytesPerDim+i])
+	for i := 0; i < numDims; i++ {
+		switch bytesPerDim {
+		case 1:
+			p.Vals[i] = uint64(b[i])
+		case 2:
+			p.Vals[i] = uint64(binary.BigEndian.Uint16(b[2*i:]))
+		case 4:
+			p.Vals[i] = uint64(binary.BigEndian.Uint32(b[4*i:]))
+		case 8:
+			p.Vals[i] = binary.BigEndian.Uint64(b[8*i:])
 		}
-		p.Vals[dim] = val
 	}
-	var userData uint64
-	for i := numDims * bytesPerDim; i < pointSize; i++ {
-		userData <<= 8
-		userData += uint64(bytesP[i])
-	}
-	p.UserData = userData
+	p.UserData = binary.BigEndian.Uint64(b[numDims*bytesPerDim:])
 	return
 }
 
@@ -188,9 +170,10 @@ func (s *PointArrayMem) ToExt(f *os.File, bytesPerDim int) (pae *PointArrayExt, 
 		bytesPerDim: bytesPerDim,
 		pointSize:   pointSize,
 	}
+	b := make([]byte, pointSize)
 	for _, point := range s.points {
-		bytesP := point.Encode(bytesPerDim)
-		_, err = f.Write(bytesP)
+		point.Encode(b, bytesPerDim)
+		_, err = f.Write(b)
 		if err != nil {
 			return
 		}
@@ -250,9 +233,7 @@ func (s *PointArrayExt) GetPoint(idx int) (point Point, err error) {
 	if _, err = s.f.ReadAt(pi, offI); err != nil {
 		return
 	}
-	if err = point.Decode(pi, s.numDims, s.bytesPerDim); err != nil {
-		return
-	}
+	point.Decode(pi, s.numDims, s.bytesPerDim)
 	return
 }
 
@@ -283,7 +264,8 @@ func (s *PointArrayExt) SubArray(begin, end int) (sub PointArray) {
 }
 
 func (s *PointArrayExt) Erase(point Point) (found bool, err error) {
-	bytesP := point.Encode(s.bytesPerDim)
+	b := make([]byte, s.pointSize)
+	point.Encode(b, s.bytesPerDim)
 	var off int64
 	for off = s.offBegin; off < s.offBegin+int64(s.numPoints*s.pointSize); off += int64(s.pointSize) {
 		pi := make([]byte, s.pointSize)
@@ -291,7 +273,7 @@ func (s *PointArrayExt) Erase(point Point) (found bool, err error) {
 		if err != nil {
 			return
 		}
-		found = bytes.Equal(bytesP, pi)
+		found = bytes.Equal(b, pi)
 		if found {
 			break
 		}
@@ -317,16 +299,13 @@ func (s *PointArrayExt) Erase(point Point) (found bool, err error) {
 func (s *PointArrayExt) ToMem() (pam *PointArrayMem, err error) {
 	points := make([]Point, 0, s.numPoints)
 	var p Point
+	pi := make([]byte, s.pointSize)
 	for off := s.offBegin; off < s.offBegin+int64(s.numPoints*s.pointSize); off += int64(s.pointSize) {
-		pi := make([]byte, s.pointSize)
 		_, err = s.f.ReadAt(pi, off)
 		if err != nil {
 			return
 		}
-		err = p.Decode(pi, s.numDims, s.bytesPerDim)
-		if err != nil {
-			return
-		}
+		p.Decode(pi, s.numDims, s.bytesPerDim)
 		points = append(points, p)
 	}
 	pam = &PointArrayMem{

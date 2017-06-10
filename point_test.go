@@ -69,15 +69,16 @@ func TestPointCodec(t *testing.T) {
 		},
 	}
 
+	var point Point
 	for i, tc := range cases {
-		bytesP := tc.point.Encode(tc.bytesPerDim)
-		if !bytes.Equal(bytesP, tc.bytesP) {
-			t.Fatalf("point %d Encode as %v", i, bytesP)
+		b := make([]byte, tc.numDims*tc.bytesPerDim+8)
+		tc.point.Encode(b, tc.bytesPerDim)
+		if !bytes.Equal(b, tc.bytesP) {
+			t.Fatalf("point %d Encode as %v", i, b)
 		}
-		var point Point
-		err := point.Decode(tc.bytesP, tc.numDims, tc.bytesPerDim)
-		if err != nil || !point.Equal(tc.point) {
-			t.Fatalf("point %d Decode as %v, err %v", i, point, err)
+		point.Decode(tc.bytesP, tc.numDims, tc.bytesPerDim)
+		if !point.Equal(tc.point) {
+			t.Fatalf("point %d Decode as %v", i, point)
 		}
 	}
 }
