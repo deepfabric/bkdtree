@@ -138,7 +138,13 @@ func mmapFile(f *os.File) (data []byte, err error) {
 		err = err1
 		return
 	}
-	data, err = syscall.Mmap(int(f.Fd()), 0, int(info.Size()), int(info.Mode()), syscall.MAP_SHARED)
+	prots := []int{syscall.PROT_WRITE | syscall.PROT_READ, syscall.PROT_READ}
+	for _, prot := range prots {
+		data, err = syscall.Mmap(int(f.Fd()), 0, int(info.Size()), prot, syscall.MAP_SHARED)
+		if err == nil {
+			break
+		}
+	}
 	return
 }
 

@@ -176,7 +176,7 @@ func TestBkdErase(t *testing.T) {
 	}
 	cnt, err = countPoint(bkd, target)
 	if err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%+v", err)
 	} else if cnt != 0 {
 		t.Errorf("point %v still exists", target)
 	}

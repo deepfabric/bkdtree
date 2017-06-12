@@ -105,13 +105,6 @@ func TestPointArrayExt_ToMem(t *testing.T) {
 		byDim:  1,
 	}
 
-	tmpFp := "/tmp/point_test"
-	tmpF, err := os.OpenFile(tmpFp, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer tmpF.Close()
-
 	bytesPerDim := 4
 	pae := pam.ToExt(bytesPerDim)
 	pam2 := pae.ToMem()
@@ -213,12 +206,39 @@ func TestSplitPoints(t *testing.T) {
 
 	//test SplitPoints(PointArrayExt)
 	bytesPerDim := 4
+	pam := &PointArrayMem{
+		points: points,
+		byDim:  0,
+	}
+	pae := pam.ToExt(bytesPerDim)
 	for dim := 0; dim < numDims; dim++ {
-		pam := &PointArrayMem{
-			points: points,
-			byDim:  dim,
+		pae.byDim = dim
+		splitValues, splitPoses := SplitPoints(pae, numStrips)
+		pam2 := pae.ToMem()
+		verifySplit(t, pam2, numStrips, splitValues, splitPoses)
+		if !areSmaePoints(pam.points, pam2.points, numDims) {
+			t.Fatalf("point set changes after split")
 		}
-		pae := pam.ToExt(bytesPerDim)
+	}
+
+	//test SplitPoints(PointArrayExt) on external temp file
+	tmpF, err := os.OpenFile("/tmp/point_test", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	defer tmpF.Close()
+	_, err = tmpF.Write(pae.data)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	data, err := mmapFile(tmpF)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	defer munmapFile(data)
+	pae.data = data
+	for dim := 0; dim < numDims; dim++ {
+		pae.byDim = dim
 		splitValues, splitPoses := SplitPoints(pae, numStrips)
 		pam2 := pae.ToMem()
 		verifySplit(t, pam2, numStrips, splitValues, splitPoses)

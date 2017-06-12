@@ -239,7 +239,7 @@ func (s *PointArrayExt) Erase(point Point) (found bool) {
 }
 
 func (s *PointArrayExt) ToMem() (pam *PointArrayMem) {
-	points := make([]Point, 0, s.numPoints)
+	points := make([]Point, s.numPoints)
 	for i := 0; i < s.numPoints; i++ {
 		p := s.GetPoint(i)
 		points[i] = p
