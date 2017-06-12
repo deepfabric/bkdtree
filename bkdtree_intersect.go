@@ -28,12 +28,12 @@ func (bkd *BkdTree) intersectT0M(visitor IntersectVisitor) {
 }
 
 func (bkd *BkdTree) intersectTi(visitor IntersectVisitor, idx int) (err error) {
-	if bkd.trees[idx].meta.numPoints <= 0 {
+	if bkd.trees[idx].meta.NumPoints <= 0 {
 		return
 	}
 	//depth-first visiting from the root node
 	meta := &bkd.trees[idx].meta
-	err = bkd.intersectNode(visitor, bkd.trees[idx].data, meta, int(meta.rootOff))
+	err = bkd.intersectNode(visitor, bkd.trees[idx].data, meta, int(meta.RootOff))
 	return
 }
 
@@ -51,7 +51,7 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, data []byte,
 		if child.NumPoints <= 0 {
 			continue
 		}
-		if child.Offset < meta.pointsOffEnd {
+		if child.Offset < meta.PointsOffEnd {
 			//leaf node
 			pae := PointArrayExt{
 				data:        data[int(child.Offset):],

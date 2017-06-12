@@ -16,6 +16,13 @@ type KdTreeExtNodeInfo struct {
 
 const KdTreeExtNodeInfoSize int64 = 8 + 8
 
+//KdTreeExtIntraNode is struct of intra node.
+/**
+ * invariants:
+ * 1. NumStrips == 1 + len(SplitValues) == len(Children).
+ * 2. values in SplitValues are in non-decreasing order.
+ * 3. offset in Children are in increasing order.
+ */
 type KdTreeExtIntraNode struct {
 	SplitDim    uint32
 	NumStrips   uint32
@@ -23,24 +30,25 @@ type KdTreeExtIntraNode struct {
 	Children    []KdTreeExtNodeInfo
 }
 
+// KdTreeExtMeta is persisted at the end of file.
 /**
- * KdTreeExtMeta is persisted at the end of file.
  * Some fields are redundant in order to make the file be self-descriptive.
  * Attention:
- * 1. Keep KdTreeExtMeta be 4 bytes aligned.
- * 2. Keep formatVer one byte, and be the last member.
- * 3. Keep KdMetaSize be sizeof(KdTreeExtMeta);
+ * 1. Keep all fields exported to allow one invoke of binary.Read() to parse the whole struct.
+ * 2. Keep KdTreeExtMeta be 4 bytes aligned.
+ * 3. Keep formatVer one byte, and be the last member.
+ * 4. Keep KdMetaSize be sizeof(KdTreeExtMeta);
  */
 type KdTreeExtMeta struct {
-	pointsOffEnd uint64 //the offset end of points
-	rootOff      uint64 //the offset of root KdTreeExtIntraNode
-	numPoints    uint64 //the current number of points. Deleting points could trigger rebuilding the tree.
-	leafCap      uint16
-	intraCap     uint16
-	numDims      uint8
-	bytesPerDim  uint8
-	pointSize    uint8
-	formatVer    uint8 //the file format version. shall be the last byte of the file.
+	PointsOffEnd uint64 //the offset end of points
+	RootOff      uint64 //the offset of root KdTreeExtIntraNode
+	NumPoints    uint64 //the current number of points. Deleting points could trigger rebuilding the tree.
+	LeafCap      uint16
+	IntraCap     uint16
+	NumDims      uint8
+	BytesPerDim  uint8
+	PointSize    uint8
+	FormatVer    uint8 //the file format version. shall be the last byte of the file.
 }
 
 //KdTreeExtMetaSize is sizeof(KdTreeExtMeta)
@@ -54,7 +62,7 @@ type BkdSubTree struct {
 
 //BkdTree is a BKD tree
 type BkdTree struct {
-	BkdCap      int // N in the paper
+	bkdCap      int // N in the paper
 	t0mCap      int // M in the paper, the capacity of in-memory buffer
 	numDims     int // number of point dimensions
 	bytesPerDim int // number of bytes of each encoded dimension
@@ -132,7 +140,7 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		return
 	}
 	bkd = &BkdTree{
-		BkdCap:      bkdCap,
+		bkdCap:      bkdCap,
 		t0mCap:      t0mCap,
 		numDims:     numDims,
 		bytesPerDim: bytesPerDim,
@@ -145,6 +153,10 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		trees:       make([]BkdSubTree, 0),
 	}
 	return
+}
+
+func (bkd *BkdTree) GetCap() int {
+	return bkd.bkdCap
 }
 
 //https://medium.com/@arpith/adventures-with-mmap-463b33405223

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"unsafe"
+
 	"github.com/pkg/errors"
 )
 
@@ -34,20 +36,21 @@ func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 }
 
 func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
-	if bkd.trees[idx].meta.numPoints <= 0 {
+	if bkd.trees[idx].meta.NumPoints <= 0 {
 		return
 	}
 
 	//depth-first erasing from the root node
 	meta := &bkd.trees[idx].meta
-	found, err = bkd.eraseNode(point, bkd.trees[idx].data, meta, int(meta.rootOff))
+	found, err = bkd.eraseNode(point, bkd.trees[idx].data, meta, int(meta.RootOff))
 	if err != nil {
 		return
 	}
 	if found {
-		bkd.trees[idx].meta.numPoints--
-		bf := bytes.NewBuffer(bkd.trees[idx].data[len(bkd.trees[idx].data)-KdTreeExtMetaSize:])
-		err = binary.Write(bf, binary.BigEndian, meta)
+		bkd.trees[idx].meta.NumPoints--
+		off := len(bkd.trees[idx].data) - KdTreeExtMetaSize
+		off += int(unsafe.Offsetof(bkd.trees[idx].meta.NumPoints))
+		binary.BigEndian.PutUint64(bkd.trees[idx].data[off:], bkd.trees[idx].meta.NumPoints)
 		if err != nil {
 			err = errors.Wrap(err, "")
 		}
@@ -59,16 +62,15 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 func (bkd *BkdTree) eraseNode(point Point, data []byte, meta *KdTreeExtMeta, nodeOffset int) (found bool, err error) {
 	var node KdTreeExtIntraNode
 	br := bytes.NewReader(data[nodeOffset:])
-	bf := bytes.NewBuffer(data[nodeOffset:])
 	err = node.Read(br)
 	if err != nil {
 		return
 	}
-	for _, child := range node.Children {
+	for i, child := range node.Children {
 		if child.NumPoints <= 0 {
 			continue
 		}
-		if child.Offset < meta.pointsOffEnd {
+		if child.Offset < meta.PointsOffEnd {
 			//leaf node
 			pae := PointArrayExt{
 				data:        data[int(child.Offset):],
@@ -88,13 +90,10 @@ func (bkd *BkdTree) eraseNode(point Point, data []byte, meta *KdTreeExtMeta, nod
 		}
 		if found {
 			child.NumPoints--
+			//Attention: offset calculation shall be synced with KdTreeExtIntraNode definion.
+			off := nodeOffset + 8*int(node.NumStrips) + 16*i + 8
+			binary.BigEndian.PutUint64(data[off:], child.NumPoints)
 			break
-		}
-	}
-	if found {
-		err = node.Write(bf)
-		if err != nil {
-			err = errors.Wrap(err, "")
 		}
 	}
 	return

@@ -12,7 +12,7 @@ import (
 
 //Insert inserts given point. Fail if the tree is full.
 func (bkd *BkdTree) Insert(point Point) (err error) {
-	if bkd.NumPoints >= bkd.BkdCap {
+	if bkd.NumPoints >= bkd.bkdCap {
 		return errors.New("BKDTree is full")
 	}
 	//insert into in-memory buffer t0m. If t0m is not full, return.
@@ -25,10 +25,10 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	sum := len(bkd.t0m)
 	var k int
 	for k = 0; k < len(bkd.trees); k++ {
-		if bkd.trees[k].meta.numPoints == 0 {
+		if bkd.trees[k].meta.NumPoints == 0 {
 			break
 		}
-		sum += int(bkd.trees[k].meta.numPoints)
+		sum += int(bkd.trees[k].meta.NumPoints)
 		capK := bkd.t0mCap << uint(k)
 		if capK >= sum {
 			break
@@ -37,15 +37,15 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	if k == len(bkd.trees) {
 		kd := BkdSubTree{
 			meta: KdTreeExtMeta{
-				pointsOffEnd: 0,
-				rootOff:      0,
-				numPoints:    0,
-				leafCap:      uint16(bkd.leafCap),
-				intraCap:     uint16(bkd.intraCap),
-				numDims:      uint8(bkd.numDims),
-				bytesPerDim:  uint8(bkd.bytesPerDim),
-				pointSize:    uint8(bkd.pointSize),
-				formatVer:    0,
+				PointsOffEnd: 0,
+				RootOff:      0,
+				NumPoints:    0,
+				LeafCap:      uint16(bkd.leafCap),
+				IntraCap:     uint16(bkd.intraCap),
+				NumDims:      uint8(bkd.numDims),
+				BytesPerDim:  uint8(bkd.bytesPerDim),
+				PointSize:    uint8(bkd.pointSize),
+				FormatVer:    0,
 			},
 		}
 		bkd.trees = append(bkd.trees, kd)
@@ -78,7 +78,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	//empty T0M and Ti, 0<=i<k
 	bkd.t0m = make([]Point, 0, bkd.t0mCap)
 	for i := 0; i <= k; i++ {
-		if bkd.trees[i].meta.numPoints <= 0 {
+		if bkd.trees[i].meta.NumPoints <= 0 {
 			continue
 		} else if err = munmapFile(bkd.trees[i].data); err != nil {
 			return
@@ -89,7 +89,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 			err = errors.Wrap(err, "")
 			return
 		}
-		bkd.trees[i].meta.numPoints = 0
+		bkd.trees[i].meta.NumPoints = 0
 	}
 	if err = os.Rename(tmpFpK, fpK); err != nil {
 		err = errors.Wrap(err, "")
@@ -126,7 +126,7 @@ func (bkd *BkdTree) extractT0M(tmpF *os.File) (err error) {
 }
 
 func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
-	if bkd.trees[idx].meta.numPoints <= 0 {
+	if bkd.trees[idx].meta.NumPoints <= 0 {
 		return
 	}
 	fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, idx))
@@ -139,7 +139,7 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 
 	//depth-first extracting from the root node
 	meta := &bkd.trees[idx].meta
-	err = bkd.extractNode(dstF, bkd.trees[idx].data, meta, int(meta.rootOff))
+	err = bkd.extractNode(dstF, bkd.trees[idx].data, meta, int(meta.RootOff))
 	return
 }
 
@@ -152,9 +152,9 @@ func (bkd *BkdTree) extractNode(dstF *os.File, data []byte, meta *KdTreeExtMeta,
 		return
 	}
 	for _, child := range node.Children {
-		if child.Offset < meta.pointsOffEnd {
+		if child.Offset < meta.PointsOffEnd {
 			//leaf node
-			length := int(child.NumPoints) * int(meta.pointSize)
+			length := int(child.NumPoints) * int(meta.PointSize)
 			_, err = dstF.Write(data[int(child.Offset) : int(child.Offset)+length])
 			if err != nil {
 				err = errors.Wrap(err, "")
@@ -191,15 +191,15 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	}
 	//record meta info at end
 	meta = &KdTreeExtMeta{
-		pointsOffEnd: uint64(pointsOffEnd),
-		rootOff:      uint64(rootOff),
-		numPoints:    uint64(numPoints),
-		leafCap:      uint16(bkd.leafCap),
-		intraCap:     uint16(bkd.intraCap),
-		numDims:      uint8(bkd.numDims),
-		bytesPerDim:  uint8(bkd.bytesPerDim),
-		pointSize:    uint8(bkd.pointSize),
-		formatVer:    0,
+		PointsOffEnd: uint64(pointsOffEnd),
+		RootOff:      uint64(rootOff),
+		NumPoints:    uint64(numPoints),
+		LeafCap:      uint16(bkd.leafCap),
+		IntraCap:     uint16(bkd.intraCap),
+		NumDims:      uint8(bkd.numDims),
+		BytesPerDim:  uint8(bkd.bytesPerDim),
+		PointSize:    uint8(bkd.pointSize),
+		FormatVer:    0,
 	}
 	err = binary.Write(tmpF, binary.BigEndian, meta)
 	if err != nil {

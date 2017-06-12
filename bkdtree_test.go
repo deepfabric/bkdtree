@@ -1,11 +1,67 @@
 package bkdtree
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
+
+	"bytes"
+
+	"encoding/binary"
+	"os"
 
 	"github.com/pkg/errors"
 )
 
+func (n *KdTreeExtIntraNode) equal(n2 *KdTreeExtIntraNode) (res bool) {
+	if n.SplitDim != n2.SplitDim || n.NumStrips != n2.NumStrips ||
+		len(n.SplitValues) != len(n2.SplitValues) ||
+		len(n.Children) != len(n2.Children) {
+		res = false
+		return
+	}
+	for i := 0; i < len(n.SplitValues); i++ {
+		if n.SplitValues[i] != n2.SplitValues[i] {
+			res = false
+			return
+		}
+	}
+	for i := 0; i < len(n.Children); i++ {
+		if n.Children[i] != n2.Children[i] {
+			res = false
+			return
+		}
+	}
+	res = true
+	return
+}
+
+func TestIntraNodeReadWrite(t *testing.T) {
+	n := KdTreeExtIntraNode{
+		SplitDim:    1,
+		NumStrips:   4,
+		SplitValues: []uint64{3, 5, 7},
+		Children: []KdTreeExtNodeInfo{
+			{Offset: 0, NumPoints: 7},
+			{Offset: 10, NumPoints: 9},
+			{Offset: 20, NumPoints: 137},
+			{Offset: 180, NumPoints: 999},
+		},
+	}
+	bf := new(bytes.Buffer)
+	if err := n.Write(bf); err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	var n2 KdTreeExtIntraNode
+	if err := n2.Read(bf); err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	if !n.equal(&n2) {
+		t.Fatalf("KdTreeExtIntraNode changes after encode and decode: %v, %v", n, n2)
+	}
+}
 func TestBkdInsert(t *testing.T) {
 	t0mCap := 1000
 	treesCap := 5
@@ -42,8 +98,8 @@ func TestBkdInsert(t *testing.T) {
 		for i := 0; i < len(bkd.trees); i++ {
 			tiCap := bkd.t0mCap << uint(i)
 			want := tiCap * (quotient % 2)
-			if bkd.trees[i].meta.numPoints != uint64(want) {
-				t.Fatalf("bkd.numPoints %d, bkd.tree[%d].numPoints %d is incorrect, want %d", bkd.NumPoints, i, bkd.trees[i].meta.numPoints, want)
+			if bkd.trees[i].meta.NumPoints != uint64(want) {
+				t.Fatalf("bkd.numPoints %d, bkd.tree[%d].numPoints %d is incorrect, want %d", bkd.NumPoints, i, bkd.trees[i].meta.NumPoints, want)
 			}
 			quotient >>= 1
 		}
@@ -129,6 +185,40 @@ func TestBkdIntersect(t *testing.T) {
 	}
 }
 
+func verifyBkdMeta(bkd *BkdTree) (err error) {
+	cnt := len(bkd.t0m)
+	var f *os.File
+	for i := 0; i < len(bkd.trees); i++ {
+		if bkd.trees[i].meta.NumPoints <= 0 {
+			continue
+		}
+		fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, i))
+		f, err = os.OpenFile(fp, os.O_RDONLY, 0)
+		if err != nil {
+			return
+		}
+		_, err = f.Seek(-int64(KdTreeExtMetaSize), 2)
+		if err != nil {
+			return
+		}
+		var meta KdTreeExtMeta
+		err = binary.Read(f, binary.BigEndian, &meta)
+		if err != nil {
+			return
+		}
+		if meta != bkd.trees[i].meta {
+			err = errors.Errorf("bkd.trees[%d].meta does not match file content, has %v, want %v", i, bkd.trees[i].meta, meta)
+			return
+		}
+		cnt += int(meta.NumPoints)
+	}
+	if cnt != bkd.NumPoints {
+		err = errors.Errorf("bkd.numPoints does not match file content, has %v, want %v", bkd.NumPoints, cnt)
+		return
+	}
+	return
+}
+
 func countPoint(bkd *BkdTree, point Point) (cnt int, err error) {
 	lowPoint, highPoint := point, point
 	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
@@ -173,21 +263,26 @@ func TestBkdErase(t *testing.T) {
 		t.Fatalf("point %v not found", target)
 	} else if bkd.NumPoints != len(points)-1 {
 		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.NumPoints, len(points)-1)
+	} else if err = verifyBkdMeta(bkd); err != nil {
+		t.Fatalf("%+v", err)
 	}
+
 	cnt, err = countPoint(bkd, target)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	} else if cnt != 0 {
 		t.Errorf("point %v still exists", target)
 	}
-
 	//there's room for insertion
 	err = bkd.Insert(target)
 	if err != nil {
 		t.Fatalf("bkd.Insert failed, err: %+v", err)
 	} else if bkd.NumPoints != len(points) {
 		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.NumPoints, len(points))
+	} else if err = verifyBkdMeta(bkd); err != nil {
+		t.Fatalf("%+v", err)
 	}
+
 	cnt, err = countPoint(bkd, target)
 	if err != nil {
 		t.Fatalf("%+v", err)
