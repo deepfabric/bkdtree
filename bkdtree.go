@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"syscall"
+
+	"github.com/pkg/errors"
 )
 
 type KdTreeExtNodeInfo struct {
@@ -72,19 +74,26 @@ func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
 	//Slice shall be adjusted to the expected length before calling binary.Read().
 	err = binary.Read(r, binary.BigEndian, &n.SplitDim)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	err = binary.Read(r, binary.BigEndian, &n.NumStrips)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	n.SplitValues = make([]uint64, n.NumStrips-1)
 	err = binary.Read(r, binary.BigEndian, &n.SplitValues)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	n.Children = make([]KdTreeExtNodeInfo, n.NumStrips)
 	err = binary.Read(r, binary.BigEndian, &n.Children) //TODO: why n.children doesn't work?
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }
 
@@ -94,17 +103,24 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 	//Structs with slice members can not be used with binary.Write. Slice members shall be write explictly.
 	err = binary.Write(w, binary.BigEndian, &n.SplitDim)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	err = binary.Write(w, binary.BigEndian, &n.NumStrips)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	err = binary.Write(w, binary.BigEndian, &n.SplitValues)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	err = binary.Write(w, binary.BigEndian, &n.Children)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }
 
@@ -135,7 +151,7 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 func mmapFile(f *os.File) (data []byte, err error) {
 	info, err1 := f.Stat()
 	if err1 != nil {
-		err = err1
+		err = errors.Wrap(err1, "")
 		return
 	}
 	prots := []int{syscall.PROT_WRITE | syscall.PROT_READ, syscall.PROT_READ}
@@ -145,10 +161,18 @@ func mmapFile(f *os.File) (data []byte, err error) {
 			break
 		}
 	}
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }
 
 func munmapFile(data []byte) (err error) {
 	err = syscall.Munmap(data)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }

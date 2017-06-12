@@ -3,10 +3,11 @@ package bkdtree
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/pkg/errors"
 )
 
 //Insert inserts given point. Fail if the tree is full.
@@ -54,6 +55,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	fpK := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, k))
 	tmpFK, err := os.OpenFile(tmpFpK, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	defer tmpFK.Close()
@@ -81,17 +83,21 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 		} else if err = munmapFile(bkd.trees[i].data); err != nil {
 			return
 		} else if err = bkd.trees[i].f.Close(); err != nil {
+			err = errors.Wrap(err, "")
 			return
 		} else if err = os.Remove(bkd.trees[i].f.Name()); err != nil {
+			err = errors.Wrap(err, "")
 			return
 		}
 		bkd.trees[i].meta.numPoints = 0
 	}
 	if err = os.Rename(tmpFpK, fpK); err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	fK, err := os.OpenFile(fpK, os.O_RDWR, 0600)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	data, err := mmapFile(fK)
@@ -112,6 +118,7 @@ func (bkd *BkdTree) extractT0M(tmpF *os.File) (err error) {
 		point.Encode(b, bkd.bytesPerDim)
 		_, err = tmpF.Write(b)
 		if err != nil {
+			err = errors.Wrap(err, "")
 			return
 		}
 	}
@@ -125,6 +132,7 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 	fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, idx))
 	srcF, err := os.Open(fp)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	defer srcF.Close()
@@ -137,9 +145,10 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 
 func (bkd *BkdTree) extractNode(dstF *os.File, data []byte, meta *KdTreeExtMeta, nodeOffset int) (err error) {
 	var node KdTreeExtIntraNode
-	bf := bytes.NewBuffer(data[nodeOffset:])
+	bf := bytes.NewReader(data[nodeOffset:])
 	err = node.Read(bf)
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	for _, child := range node.Children {
@@ -148,6 +157,7 @@ func (bkd *BkdTree) extractNode(dstF *os.File, data []byte, meta *KdTreeExtMeta,
 			length := int(child.NumPoints) * int(meta.pointSize)
 			_, err = dstF.Write(data[int(child.Offset) : int(child.Offset)+length])
 			if err != nil {
+				err = errors.Wrap(err, "")
 				return
 			}
 		} else {
@@ -164,6 +174,7 @@ func (bkd *BkdTree) extractNode(dstF *os.File, data []byte, meta *KdTreeExtMeta,
 func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 	pointsOffEnd, err := tmpF.Seek(0, 1) //get current position
 	if err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	var data []byte
@@ -191,17 +202,25 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 		formatVer:    0,
 	}
 	err = binary.Write(tmpF, binary.BigEndian, meta)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }
 
 func getCurrentOffset(f *os.File) (offset int64, err error) {
 	offset, err = f.Seek(0, 1) //get current position
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }
 
 func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, data []byte, begin, end, depth int) (offset int64, err error) {
 	if begin >= end {
-		err = fmt.Errorf("assertion begin>=end failed, begin %v, end %v", begin, end)
+		err = errors.New(fmt.Sprintf("assertion begin>=end failed, begin %v, end %v", begin, end))
 		return
 	}
 
@@ -263,5 +282,9 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, data []byte, begin, end, dept
 		Children:    children,
 	}
 	err = node.Write(tmpF)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
 	return
 }

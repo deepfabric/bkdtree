@@ -29,7 +29,7 @@ func TestBkdInsert(t *testing.T) {
 	for i := 0; i < bkdCap; i++ {
 		err := bkd.Insert(points[i])
 		if err != nil {
-			t.Fatalf("bkd.Insert failed, i=%v, err: %v", i, err)
+			t.Fatalf("bkd.Insert failed, i=%v, err: %+v", i, err)
 		}
 		if bkd.NumPoints != i+1 {
 			t.Fatalf("incorrect numPoints. numPoints=%v, i=%v", bkd.NumPoints, i)
@@ -76,7 +76,7 @@ func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
 	for i := 0; i < bkdCap; i++ {
 		err = bkd.Insert(points[i])
 		if err != nil {
-			err = errors.Errorf("bkd.Insert failed, i=%v, err: %v", i, err)
+			err = errors.Errorf("bkd.Insert failed, i=%v, err: %+v", i, err)
 		}
 	}
 	return
@@ -168,7 +168,7 @@ func TestBkdErase(t *testing.T) {
 	target = points[13]
 	found, err = bkd.Erase(target)
 	if err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%+v", err)
 	} else if !found {
 		t.Fatalf("point %v not found", target)
 	} else if bkd.NumPoints != len(points)-1 {
@@ -184,13 +184,13 @@ func TestBkdErase(t *testing.T) {
 	//there's room for insertion
 	err = bkd.Insert(target)
 	if err != nil {
-		t.Fatalf("bkd.Insert failed, err: %v", err)
+		t.Fatalf("bkd.Insert failed, err: %+v", err)
 	} else if bkd.NumPoints != len(points) {
 		t.Fatalf("incorrect bkd.numPoints %d, want %d", bkd.NumPoints, len(points))
 	}
 	cnt, err = countPoint(bkd, target)
 	if err != nil {
-		t.Fatalf("%v", err)
+		t.Fatalf("%+v", err)
 	} else if cnt != 1 {
 		t.Errorf("point %v still exists", target)
 	}
@@ -216,7 +216,7 @@ func BenchmarkBkdInsert(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		err := bkd.Insert(Point{[]uint64{uint64(i), uint64(i)}, uint64(i)})
 		if err != nil {
-			b.Fatalf("bkd.Insert failed, i=%v, err: %v", i, err)
+			b.Fatalf("bkd.Insert failed, i=%v, err: %+v", i, err)
 		}
 	}
 	return
@@ -233,7 +233,7 @@ func BenchmarkBkdErase(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err = bkd.Erase(points[i])
 		if err != nil {
-			b.Fatalf("%v", err)
+			b.Fatalf("%+v", err)
 		}
 	}
 }
@@ -254,7 +254,7 @@ func BenchmarkBkdIntersect(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		err = bkd.Intersect(visitor)
 		if err != nil {
-			b.Fatalf("%v", err)
+			b.Fatalf("%+v", err)
 		} else if len(visitor.points) <= 0 {
 			b.Errorf("found 0 matchs, however some expected")
 		}

@@ -42,7 +42,7 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, data []byte,
 	lowP := visitor.GetLowPoint()
 	highP := visitor.GetHighPoint()
 	var node KdTreeExtIntraNode
-	bf := bytes.NewBuffer(data[nodeOffset:])
+	bf := bytes.NewReader(data[nodeOffset:])
 	err = node.Read(bf)
 	if err != nil {
 		return
