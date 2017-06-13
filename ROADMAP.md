@@ -14,8 +14,7 @@ This document defines the roadmap for BKD tree development.
 - [D] erase
 - [D] intersect
 - [D] compatible file format to allow multiple versions
-- [ ] performance optimization - mmap, splice, point encoding/decoding etc.
-- [ ] disaster recovery - insert/erase binlog
-- [ ] disaster recovery - rebuild
+- [D] performance optimization - mmap, splice, point encoding/decoding etc.
+- [D] disaster recovery - open, close
 - [ ] concurrent access - singel writer, multiple reader
 - [ ] concurrent access - background compact
