@@ -2,6 +2,7 @@ package bkdtree
 
 import (
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"testing"
 
@@ -9,6 +10,8 @@ import (
 
 	"encoding/binary"
 	"os"
+
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -364,5 +367,106 @@ func TestBkdOpenClose(t *testing.T) {
 	}
 	if !bkd.equal(bkd2) {
 		t.Fatalf("bkd meta changed with close and open.")
+	}
+}
+
+func bkdWriter(abort chan interface{}, bkd *BkdTree, points []Point) {
+FOR_LOOP:
+	for {
+		select {
+		case <-abort:
+			break FOR_LOOP //break for
+		default:
+		}
+		idx := rand.Intn(len(points))
+		_, err := bkd.Erase(points[idx])
+		if err != nil {
+			panic(err)
+		}
+		err = bkd.Insert(points[idx])
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func bkdCloser(abort chan interface{}, bkd *BkdTree) {
+	var interval time.Duration = 2 * time.Second
+FOR_LOOP:
+	for {
+		select {
+		case <-abort:
+			break FOR_LOOP //break for
+		default:
+		}
+
+		if err := bkd.Close(); err != nil {
+			panic(err)
+		}
+		if err := bkd.Open(bkd.bkdCap, bkd.dir, bkd.prefix); err != nil {
+			panic(err)
+		}
+		//sleep interval
+		for {
+			select {
+			case <-time.After(interval):
+			}
+		}
+	}
+}
+
+func bkdReader(abort chan interface{}, bkd *BkdTree, points []Point) {
+FOR_LOOP:
+	for {
+		select {
+		case <-abort:
+			break FOR_LOOP //break for
+		default:
+		}
+
+		idx1 := rand.Intn(len(points))
+		idx2 := rand.Intn(len(points))
+		visitor := &IntersectCollector{points[idx1], points[idx2], make([]Point, 0)}
+		if err := bkd.Intersect(visitor); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func TestBkdConcurrentOps(t *testing.T) {
+	var bkd *BkdTree
+	var points []Point
+	var err error
+	var maxVal uint64 = 1000
+	bkd, points, err = prepareBkdTree(maxVal)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	chs := make([]chan interface{}, 0)
+	for i := 0; i < 1; i++ {
+		ch := make(chan interface{}, 1)
+		chs = append(chs, ch)
+		go bkdCloser(ch, bkd)
+	}
+	for i := 0; i < 3; i++ {
+		ch := make(chan interface{}, 1)
+		chs = append(chs, ch)
+		go bkdWriter(ch, bkd, points)
+	}
+	for i := 0; i < 5; i++ {
+		ch := make(chan interface{}, 1)
+		chs = append(chs, ch)
+		go bkdReader(ch, bkd, points)
+	}
+	//sleep a while, send message to abort readers and writers
+	for {
+		select {
+		case <-time.After(60 * time.Second):
+			for _, ch := range chs {
+				ch <- "abort"
+			}
+		case <-time.After(70 * time.Second):
+			fmt.Println("children shall all have quited")
+		}
 	}
 }

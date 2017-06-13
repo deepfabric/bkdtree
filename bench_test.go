@@ -1,8 +1,6 @@
 package bkdtree
 
-import (
-	"testing"
-)
+import "testing"
 
 func BenchmarkBkdInsert(b *testing.B) {
 	t0mCap := 1000
