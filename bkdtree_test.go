@@ -407,11 +407,7 @@ FOR_LOOP:
 			panic(err)
 		}
 		//sleep interval
-		for {
-			select {
-			case <-time.After(interval):
-			}
-		}
+		<-time.After(interval)
 	}
 }
 
@@ -459,14 +455,10 @@ func TestBkdConcurrentOps(t *testing.T) {
 		go bkdReader(ch, bkd, points)
 	}
 	//sleep a while, send message to abort readers and writers
-	for {
-		select {
-		case <-time.After(60 * time.Second):
-			for _, ch := range chs {
-				ch <- "abort"
-			}
-		case <-time.After(70 * time.Second):
-			fmt.Println("children shall all have quited")
-		}
+	<-time.After(60 * time.Second)
+	for _, ch := range chs {
+		ch <- "abort"
 	}
+	<-time.After(10 * time.Second)
+	fmt.Println("children shall all have quited")
 }
