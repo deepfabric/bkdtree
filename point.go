@@ -18,6 +18,7 @@ type PointArray interface {
 	GetValue(idx int) uint64
 	SubArray(begin, end int) PointArray
 	Erase(point Point) bool
+	Append(point Point)
 }
 
 type PointArrayMem struct {
@@ -144,6 +145,10 @@ func (s *PointArrayMem) Erase(point Point) (found bool) {
 	return
 }
 
+func (s *PointArrayMem) Append(point Point) {
+	s.points = append(s.points, point)
+}
+
 func (s *PointArrayMem) ToExt(bytesPerDim int) (pae *PointArrayExt) {
 	numDims := len(s.points[0].Vals)
 	pointSize := numDims*bytesPerDim + 8
@@ -232,10 +237,16 @@ func (s *PointArrayExt) Erase(point Point) (found bool) {
 		offJ := (s.numPoints - 1) * s.pointSize
 		for idx := 0; idx < s.pointSize; idx++ {
 			s.data[offI+idx] = s.data[offJ+idx]
+			s.data[offJ+idx] = 0
 		}
 		s.numPoints--
 	}
 	return
+}
+
+func (s *PointArrayExt) Append(point Point) {
+	off := s.numPoints * s.pointSize
+	point.Encode(s.data[off:], s.bytesPerDim)
 }
 
 func (s *PointArrayExt) ToMem() (pam *PointArrayMem) {

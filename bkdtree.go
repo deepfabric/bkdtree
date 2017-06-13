@@ -2,8 +2,10 @@ package bkdtree
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -72,7 +74,7 @@ type BkdTree struct {
 	dir         string //directory of files which hold the persisted kdtrees
 	prefix      string //prefix of file names
 	NumPoints   int
-	t0m         []Point // T0M in the paper, in-memory buffer.
+	t0m         BkdSubTree // T0M in the paper, in-memory buffer.
 	trees       []BkdSubTree
 }
 
@@ -133,10 +135,11 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 }
 
 //NewBkdTree creates a BKDTree
-func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree) {
+func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree, err error) {
 	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 ||
 		(bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) ||
 		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
+		err = errors.Errorf("invalid parameter")
 		return
 	}
 	bkd = &BkdTree{
@@ -149,14 +152,52 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		intraCap:    intraCap,
 		dir:         dir,
 		prefix:      prefix,
-		t0m:         make([]Point, 0, t0mCap),
-		trees:       make([]BkdSubTree, 0),
+		//t0m is initialized later
+		trees: make([]BkdSubTree, 0),
 	}
+	err = bkd.initT0M()
 	return
 }
 
 func (bkd *BkdTree) GetCap() int {
 	return bkd.bkdCap
+}
+
+func (bkd *BkdTree) initT0M() (err error) {
+	fpT0M := filepath.Join(bkd.dir, fmt.Sprintf("%s_t0m", bkd.prefix))
+	fT0M, err1 := os.OpenFile(fpT0M, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err1 != nil {
+		err = errors.Wrap(err1, "")
+		return
+	}
+	meta := KdTreeExtMeta{
+		PointsOffEnd: uint64(bkd.pointSize * bkd.t0mCap),
+		RootOff:      0, //not used in T0M
+		NumPoints:    0,
+		LeafCap:      uint16(bkd.leafCap),
+		IntraCap:     uint16(bkd.intraCap),
+		NumDims:      uint8(bkd.numDims),
+		BytesPerDim:  uint8(bkd.bytesPerDim),
+		PointSize:    uint8(bkd.pointSize),
+		FormatVer:    0,
+	}
+	buf := make([]byte, meta.PointsOffEnd)
+	if _, err = fT0M.Write(buf); err != nil {
+		err = errors.Wrap(err, "")
+	}
+	if err = binary.Write(fT0M, binary.BigEndian, &meta); err != nil {
+		err = errors.Wrap(err, "")
+	}
+	data, err := mmapFile(fT0M)
+	if err != nil {
+		return
+	}
+	bkd.t0m = BkdSubTree{
+		meta: meta,
+		f:    fT0M,
+		data: data,
+	}
+	return
 }
 
 //https://medium.com/@arpith/adventures-with-mmap-463b33405223

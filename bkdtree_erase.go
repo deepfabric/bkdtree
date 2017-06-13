@@ -12,11 +12,7 @@ import (
 //Erase erases given point.
 func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 	//Query T0M with p; if found, delete it and return.
-	pam := PointArrayMem{
-		points: bkd.t0m,
-		byDim:  0,
-	}
-	found = pam.Erase(point)
+	found = bkd.eraseT0M(point)
 	if found {
 		bkd.NumPoints--
 		return
@@ -31,6 +27,25 @@ func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
 			bkd.NumPoints--
 			return
 		}
+	}
+	return
+}
+
+func (bkd *BkdTree) eraseT0M(point Point) (found bool) {
+	pae := PointArrayExt{
+		data:        bkd.t0m.data,
+		numPoints:   int(bkd.t0m.meta.NumPoints),
+		byDim:       0, //not used
+		bytesPerDim: bkd.bytesPerDim,
+		numDims:     bkd.numDims,
+		pointSize:   bkd.pointSize,
+	}
+	found = pae.Erase(point)
+	if found {
+		bkd.t0m.meta.NumPoints--
+		off := len(bkd.t0m.data) - KdTreeExtMetaSize
+		off += int(unsafe.Offsetof(bkd.t0m.meta.NumPoints))
+		binary.BigEndian.PutUint64(bkd.t0m.data[off:], bkd.t0m.meta.NumPoints)
 	}
 	return
 }

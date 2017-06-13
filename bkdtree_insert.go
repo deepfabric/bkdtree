@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"unsafe"
 
 	"github.com/pkg/errors"
 )
@@ -16,13 +17,13 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 		return errors.New("BKDTree is full")
 	}
 	//insert into in-memory buffer t0m. If t0m is not full, return.
-	bkd.t0m = append(bkd.t0m, point)
+	bkd.insertT0M(point)
 	bkd.NumPoints++
-	if len(bkd.t0m) < bkd.t0mCap {
+	if int(bkd.t0m.meta.NumPoints) < bkd.t0mCap {
 		return
 	}
 	//find the smallest index k in [0, len(trees)) at which trees[k] is empty, or its capacity is no less than the sum of size of t0m + trees[0:k+1]
-	sum := len(bkd.t0m)
+	sum := int(bkd.t0m.meta.NumPoints)
 	var k int
 	for k = 0; k < len(bkd.trees); k++ {
 		if bkd.trees[k].meta.NumPoints == 0 {
@@ -76,7 +77,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	}
 
 	//empty T0M and Ti, 0<=i<k
-	bkd.t0m = make([]Point, 0, bkd.t0mCap)
+	bkd.clearT0M()
 	for i := 0; i <= k; i++ {
 		if bkd.trees[i].meta.NumPoints <= 0 {
 			continue
@@ -112,15 +113,35 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	return
 }
 
+func (bkd *BkdTree) insertT0M(point Point) {
+	pae := PointArrayExt{
+		data:        bkd.t0m.data,
+		numPoints:   int(bkd.t0m.meta.NumPoints),
+		byDim:       0, //not used
+		bytesPerDim: bkd.bytesPerDim,
+		numDims:     bkd.numDims,
+		pointSize:   bkd.pointSize,
+	}
+	pae.Append(point)
+	bkd.t0m.meta.NumPoints++
+	off := len(bkd.t0m.data) - KdTreeExtMetaSize
+	off += int(unsafe.Offsetof(bkd.t0m.meta.NumPoints))
+	binary.BigEndian.PutUint64(bkd.t0m.data[off:], bkd.t0m.meta.NumPoints)
+}
+
+func (bkd *BkdTree) clearT0M() {
+	bkd.t0m.meta.NumPoints = 0
+	off := len(bkd.t0m.data) - KdTreeExtMetaSize
+	off += int(unsafe.Offsetof(bkd.t0m.meta.NumPoints))
+	binary.BigEndian.PutUint64(bkd.t0m.data[off:], bkd.t0m.meta.NumPoints)
+}
+
 func (bkd *BkdTree) extractT0M(tmpF *os.File) (err error) {
-	b := make([]byte, bkd.pointSize)
-	for _, point := range bkd.t0m {
-		point.Encode(b, bkd.bytesPerDim)
-		_, err = tmpF.Write(b)
-		if err != nil {
-			err = errors.Wrap(err, "")
-			return
-		}
+	size := int(bkd.t0m.meta.NumPoints) * bkd.pointSize
+	_, err = tmpF.Write(bkd.t0m.data[:size])
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
 	}
 	return
 }

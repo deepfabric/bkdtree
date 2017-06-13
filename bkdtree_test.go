@@ -72,9 +72,9 @@ func TestBkdInsert(t *testing.T) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
-	if bkd == nil {
-		t.Fatalf("bkd is nil")
+	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	if err != nil {
+		t.Fatalf("%+v", err)
 	}
 
 	maxVal := uint64(1000)
@@ -92,8 +92,8 @@ func TestBkdInsert(t *testing.T) {
 		}
 		remained := bkd.NumPoints % bkd.t0mCap
 		quotient := bkd.NumPoints / bkd.t0mCap
-		if len(bkd.t0m) != remained {
-			t.Fatalf("bkd.numPoints %d, len(bkd.t0m) %d is incorect, want %d", bkd.NumPoints, len(bkd.t0m), remained)
+		if int(bkd.t0m.meta.NumPoints) != remained {
+			t.Fatalf("bkd.numPoints %d, bkd.t0m %d is incorect, want %d", bkd.NumPoints, int(bkd.t0m.meta.NumPoints), remained)
 		}
 		for i := 0; i < len(bkd.trees); i++ {
 			tiCap := bkd.t0mCap << uint(i)
@@ -104,8 +104,7 @@ func TestBkdInsert(t *testing.T) {
 			quotient >>= 1
 		}
 	}
-	err := bkd.Insert(points[bkdCap])
-	if err == nil {
+	if err := bkd.Insert(points[bkdCap]); err == nil {
 		t.Fatalf("bkd.Insert shall fail if tree is full")
 	}
 }
@@ -120,9 +119,8 @@ func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
-	if bkd == nil {
-		err = errors.Errorf("bkd is nil")
+	bkd, err = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	if err != nil {
 		return
 	}
 	//fmt.Printf("created BkdTree %v\n", bkd)
@@ -186,7 +184,7 @@ func TestBkdIntersect(t *testing.T) {
 }
 
 func verifyBkdMeta(bkd *BkdTree) (err error) {
-	cnt := len(bkd.t0m)
+	cnt := int(bkd.t0m.meta.NumPoints)
 	var f *os.File
 	for i := 0; i < len(bkd.trees); i++ {
 		if bkd.trees[i].meta.NumPoints <= 0 {
@@ -301,9 +299,9 @@ func BenchmarkBkdInsert(b *testing.B) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
-	if bkd == nil {
-		b.Fatalf("bkd is nil")
+	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	if err != nil {
+		b.Fatalf("%+v", err)
 	}
 	//fmt.Printf("created BkdTree %v\n", bkd)
 

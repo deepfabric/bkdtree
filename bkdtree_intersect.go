@@ -19,7 +19,16 @@ func (bkd *BkdTree) Intersect(visitor IntersectVisitor) (err error) {
 func (bkd *BkdTree) intersectT0M(visitor IntersectVisitor) {
 	lowP := visitor.GetLowPoint()
 	highP := visitor.GetHighPoint()
-	for _, point := range bkd.t0m {
+	pae := PointArrayExt{
+		data:        bkd.t0m.data,
+		numPoints:   int(bkd.t0m.meta.NumPoints),
+		byDim:       0, //not used
+		bytesPerDim: bkd.bytesPerDim,
+		numDims:     bkd.numDims,
+		pointSize:   bkd.pointSize,
+	}
+	for i := 0; i < pae.numPoints; i++ {
+		point := pae.GetPoint(i)
 		if point.Inside(lowP, highP) {
 			visitor.VisitPoint(point)
 		}
