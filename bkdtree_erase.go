@@ -3,10 +3,6 @@ package bkdtree
 import (
 	"bytes"
 	"encoding/binary"
-
-	"unsafe"
-
-	"github.com/pkg/errors"
 )
 
 //Erase erases given point.
@@ -43,9 +39,7 @@ func (bkd *BkdTree) eraseT0M(point Point) (found bool) {
 	found = pae.Erase(point)
 	if found {
 		bkd.t0m.meta.NumPoints--
-		off := len(bkd.t0m.data) - KdTreeExtMetaSize
-		off += int(unsafe.Offsetof(bkd.t0m.meta.NumPoints))
-		binary.BigEndian.PutUint64(bkd.t0m.data[off:], bkd.t0m.meta.NumPoints)
+		writeMetaNumPoints(bkd.t0m.data, &bkd.t0m.meta)
 	}
 	return
 }
@@ -63,12 +57,7 @@ func (bkd *BkdTree) eraseTi(point Point, idx int) (found bool, err error) {
 	}
 	if found {
 		bkd.trees[idx].meta.NumPoints--
-		off := len(bkd.trees[idx].data) - KdTreeExtMetaSize
-		off += int(unsafe.Offsetof(bkd.trees[idx].meta.NumPoints))
-		binary.BigEndian.PutUint64(bkd.trees[idx].data[off:], bkd.trees[idx].meta.NumPoints)
-		if err != nil {
-			err = errors.Wrap(err, "")
-		}
+		writeMetaNumPoints(bkd.trees[idx].data, &bkd.trees[idx].meta)
 		return
 	}
 	return

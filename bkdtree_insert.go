@@ -113,6 +113,12 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 	return
 }
 
+func writeMetaNumPoints(data []byte, meta *KdTreeExtMeta) {
+	off := len(data) - KdTreeExtMetaSize
+	off += int(unsafe.Offsetof(meta.NumPoints))
+	binary.BigEndian.PutUint64(data[off:], meta.NumPoints)
+}
+
 func (bkd *BkdTree) insertT0M(point Point) {
 	pae := PointArrayExt{
 		data:        bkd.t0m.data,
@@ -124,16 +130,12 @@ func (bkd *BkdTree) insertT0M(point Point) {
 	}
 	pae.Append(point)
 	bkd.t0m.meta.NumPoints++
-	off := len(bkd.t0m.data) - KdTreeExtMetaSize
-	off += int(unsafe.Offsetof(bkd.t0m.meta.NumPoints))
-	binary.BigEndian.PutUint64(bkd.t0m.data[off:], bkd.t0m.meta.NumPoints)
+	writeMetaNumPoints(bkd.t0m.data, &bkd.t0m.meta)
 }
 
 func (bkd *BkdTree) clearT0M() {
 	bkd.t0m.meta.NumPoints = 0
-	off := len(bkd.t0m.data) - KdTreeExtMetaSize
-	off += int(unsafe.Offsetof(bkd.t0m.meta.NumPoints))
-	binary.BigEndian.PutUint64(bkd.t0m.data[off:], bkd.t0m.meta.NumPoints)
+	writeMetaNumPoints(bkd.t0m.data, &bkd.t0m.meta)
 }
 
 func (bkd *BkdTree) extractT0M(tmpF *os.File) (err error) {
