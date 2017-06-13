@@ -13,6 +13,9 @@ import (
 
 //Insert inserts given point. Fail if the tree is full.
 func (bkd *BkdTree) Insert(point Point) (err error) {
+	bkd.rwlock.Lock()
+	defer bkd.rwlock.Unlock()
+
 	if bkd.NumPoints >= bkd.bkdCap {
 		return errors.New("BKDTree is full")
 	}

@@ -7,6 +7,9 @@ import (
 
 //Erase erases given point.
 func (bkd *BkdTree) Erase(point Point) (found bool, err error) {
+	bkd.rwlock.Lock()
+	defer bkd.rwlock.Unlock()
+
 	//Query T0M with p; if found, delete it and return.
 	found = bkd.eraseT0M(point)
 	if found {

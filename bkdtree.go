@@ -15,6 +15,8 @@ import (
 
 	"strconv"
 
+	"sync"
+
 	"github.com/pkg/errors"
 )
 
@@ -83,6 +85,7 @@ type BkdTree struct {
 	NumPoints   int
 	t0m         BkdSubTree // T0M in the paper, in-memory buffer.
 	trees       []BkdSubTree
+	rwlock      sync.RWMutex //reader: Intersect, GetCap. writers: Insert, Erase, Open, Close.
 }
 
 func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
@@ -172,6 +175,9 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 
 //Close unmap and close all files
 func (bkd *BkdTree) Close() (err error) {
+	bkd.rwlock.Lock()
+	defer bkd.rwlock.Unlock()
+
 	if err = munmapFile(bkd.t0m.data); err != nil {
 		return
 	} else if err = bkd.t0m.f.Close(); err != nil {
@@ -192,6 +198,9 @@ func (bkd *BkdTree) Close() (err error) {
 
 //Open open and map all files. This is used for construct a BkdTree from existing data.
 func (bkd *BkdTree) Open(bkdCap int, dir, prefix string) (err error) {
+	bkd.rwlock.Lock()
+	defer bkd.rwlock.Unlock()
+
 	bkd.bkdCap, bkd.dir, bkd.prefix = bkdCap, dir, prefix
 	var nums []int
 	if err = bkd.openT0M(); err != nil {
@@ -219,6 +228,8 @@ func (bkd *BkdTree) Open(bkdCap int, dir, prefix string) (err error) {
 }
 
 func (bkd *BkdTree) GetCap() int {
+	bkd.rwlock.RLock()
+	defer bkd.rwlock.RUnlock()
 	return bkd.bkdCap
 }
 
