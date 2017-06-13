@@ -289,67 +289,80 @@ func TestBkdErase(t *testing.T) {
 	}
 }
 
-func BenchmarkBkdInsert(b *testing.B) {
-	t0mCap := 1000
-	treesCap := 20
-	bkdCap := t0mCap<<uint(treesCap) - 1
-	numDims := 2
-	bytesPerDim := 4
-	leafCap := 50
-	intraCap := 4
-	dir := "/tmp"
-	prefix := "bkd"
-	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
-	if err != nil {
-		b.Fatalf("%+v", err)
+func (bkd *BkdTree) equal(bkd2 *BkdTree) (res bool) {
+	if bkd.bkdCap != bkd2.bkdCap {
+		fmt.Printf("bkd.bkdCap differ, %d %d\n", bkd.bkdCap, bkd2.bkdCap)
+		return
 	}
-	//fmt.Printf("created BkdTree %v\n", bkd)
+	if bkd.t0mCap != bkd2.t0mCap {
+		fmt.Printf("bkd.t0mCap differ, %d %d\n", bkd.t0mCap, bkd2.t0mCap)
+		return
+	}
+	if bkd.numDims != bkd2.numDims {
+		fmt.Printf("bkd.numDims differ, %d %d\n", bkd.numDims, bkd2.numDims)
+		return
+	}
+	if bkd.bytesPerDim != bkd2.bytesPerDim {
+		fmt.Printf("bkd.bytesPerDim differ, %d %d\n", bkd.bytesPerDim, bkd2.bytesPerDim)
+		return
+	}
+	if bkd.pointSize != bkd2.pointSize {
+		fmt.Printf("bkd.pointSize differ, %d %d\n", bkd.pointSize, bkd2.pointSize)
+		return
+	}
+	if bkd.leafCap != bkd2.leafCap {
+		fmt.Printf("bkd.leafCap differ, %d %d\n", bkd.leafCap, bkd2.leafCap)
+		return
+	}
+	if bkd.intraCap != bkd2.intraCap {
+		fmt.Printf("bkd.intraCap differ, %d %d\n", bkd.intraCap, bkd2.intraCap)
+		return
+	}
+	if bkd.dir != bkd2.dir {
+		fmt.Printf("bkd.dir differ, %s %s\n", bkd.dir, bkd2.dir)
+		return
+	}
+	if bkd.prefix != bkd2.prefix {
+		fmt.Printf("bkd.prefix differ, %s %s\n", bkd.prefix, bkd2.prefix)
+		return
+	}
+	if bkd.t0m.meta != bkd2.t0m.meta {
+		fmt.Printf("bkd.t0m meta differ, %v %v\n", bkd.t0m.meta, bkd2.t0m.meta)
+		return
+	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		err := bkd.Insert(Point{[]uint64{uint64(i), uint64(i)}, uint64(i)})
-		if err != nil {
-			b.Fatalf("bkd.Insert failed, i=%v, err: %+v", i, err)
+	if len(bkd.trees) != len(bkd2.trees) {
+		fmt.Printf("bkd.trees length differ, %d %d\n", len(bkd.trees), len(bkd2.trees))
+		return
+	}
+	for i := 0; i < len(bkd.trees); i++ {
+		if bkd.trees[i].meta != bkd2.trees[i].meta {
+			fmt.Printf("bkd.trees[%d] meta differ, %v %v\n", i, bkd.trees[i].meta, bkd2.trees[i].meta)
+			return
 		}
 	}
+	res = true
 	return
 }
 
-func BenchmarkBkdErase(b *testing.B) {
+func TestBkdOpenClose(t *testing.T) {
+	var bkd, bkd2 *BkdTree
+	var err error
 	var maxVal uint64 = 1000
-	bkd, points, err := prepareBkdTree(maxVal)
+	bkd, _, err = prepareBkdTree(maxVal)
 	if err != nil {
-		b.Fatalf("%+v", err)
+		t.Fatalf("%+v", err)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err = bkd.Erase(points[i])
-		if err != nil {
-			b.Fatalf("%+v", err)
-		}
+	if err = bkd.Close(); err != nil {
+		t.Fatalf("%+v", err)
 	}
-}
 
-func BenchmarkBkdIntersect(b *testing.B) {
-	var maxVal uint64 = 1000
-	bkd, points, err := prepareBkdTree(maxVal)
-	if err != nil {
-		b.Fatalf("%+v", err)
+	bkd2 = &BkdTree{}
+	if err = bkd2.Open(bkd.bkdCap, bkd.dir, bkd.prefix); err != nil {
+		t.Fatalf("%+v", err)
 	}
-	var lowPoint, highPoint Point
-	var visitor *IntersectCollector
-	lowPoint = points[7]
-	highPoint = lowPoint
-	visitor = &IntersectCollector{lowPoint, highPoint, make([]Point, 0)}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		err = bkd.Intersect(visitor)
-		if err != nil {
-			b.Fatalf("%+v", err)
-		} else if len(visitor.points) <= 0 {
-			b.Errorf("found 0 matchs, however some expected")
-		}
+	if !bkd.equal(bkd2) {
+		t.Fatalf("bkd meta changed with close and open.")
 	}
 }

@@ -6,7 +6,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"syscall"
+
+	"bytes"
+
+	"regexp"
+
+	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -134,7 +141,7 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 	return
 }
 
-//NewBkdTree creates a BKDTree
+//NewBkdTree creates a BKDTree. This is used for construct a BkdTree from scratch.
 func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree, err error) {
 	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 ||
 		(bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) ||
@@ -156,6 +163,58 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		trees: make([]BkdSubTree, 0),
 	}
 	err = bkd.initT0M()
+	if err != nil {
+		return
+	}
+	err = rmTreeList(dir, prefix)
+	return
+}
+
+//Close unmap and close all files
+func (bkd *BkdTree) Close() (err error) {
+	if err = munmapFile(bkd.t0m.data); err != nil {
+		return
+	} else if err = bkd.t0m.f.Close(); err != nil {
+		return
+	}
+	for i := 0; i < len(bkd.trees); i++ {
+		if bkd.trees[i].meta.NumPoints == 0 {
+			continue
+		}
+		if err = munmapFile(bkd.trees[i].data); err != nil {
+			return
+		} else if err = bkd.trees[i].f.Close(); err != nil {
+			return
+		}
+	}
+	return
+}
+
+//Open open and map all files. This is used for construct a BkdTree from existing data.
+func (bkd *BkdTree) Open(bkdCap int, dir, prefix string) (err error) {
+	bkd.bkdCap, bkd.dir, bkd.prefix = bkdCap, dir, prefix
+	var nums []int
+	if err = bkd.openT0M(); err != nil {
+		return
+	}
+	if nums, err = getTreeList(dir, prefix); err != nil {
+		return
+	}
+	for _, num := range nums {
+		if len(bkd.trees) <= num+1 {
+			delta := num + 1 - len(bkd.trees)
+			for i := 0; i < delta; i++ {
+				kd := BkdSubTree{
+					meta: KdTreeExtMeta{}, //NumPoints default value zero is good
+				}
+				bkd.trees = append(bkd.trees, kd)
+			}
+		}
+		fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, num))
+		if err = bkd.trees[num].open(fp); err != nil {
+			return
+		}
+	}
 	return
 }
 
@@ -196,6 +255,95 @@ func (bkd *BkdTree) initT0M() (err error) {
 		meta: meta,
 		f:    fT0M,
 		data: data,
+	}
+	return
+}
+
+func (bkd *BkdTree) openT0M() (err error) {
+	fpT0M := filepath.Join(bkd.dir, fmt.Sprintf("%s_t0m", bkd.prefix))
+	bkd.t0m = BkdSubTree{}
+	if err = bkd.t0m.open(fpT0M); err != nil {
+		return
+	}
+	bkd.t0mCap = (len(bkd.t0m.data) - KdTreeExtMetaSize) / int(bkd.t0m.meta.PointSize)
+	bkd.numDims = int(bkd.t0m.meta.NumDims)
+	bkd.bytesPerDim = int(bkd.t0m.meta.BytesPerDim)
+	bkd.pointSize = int(bkd.t0m.meta.PointSize)
+	bkd.leafCap = int(bkd.t0m.meta.LeafCap)
+	bkd.intraCap = int(bkd.t0m.meta.IntraCap)
+	return
+}
+
+func (bst *BkdSubTree) open(fp string) (err error) {
+	if bst.f, err = os.OpenFile(fp, os.O_RDWR, 0600); err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	if bst.data, err = mmapFile(bst.f); err != nil {
+		return
+	}
+	br := bytes.NewReader(bst.data[len(bst.data)-KdTreeExtMetaSize:])
+	if err = binary.Read(br, binary.BigEndian, &bst.meta); err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	return
+}
+
+func getTreeList(dir, prefix string) (numList []int, err error) {
+	var d *os.File
+	var fns []string
+	var num int
+	d, err = os.Open(dir)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	fns, err = d.Readdirnames(0)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	re := regexp.MustCompile(fmt.Sprintf("%s_(?P<num>[0-9]+)", prefix))
+	for _, fn := range fns {
+		subs := re.FindStringSubmatch(fn)
+		if subs == nil {
+			continue
+		}
+		num, err = strconv.Atoi(subs[1])
+		if err != nil {
+			err = errors.Wrap(err, "")
+			return
+		}
+		numList = append(numList, num)
+	}
+	sort.Ints(numList)
+	return
+}
+
+func rmTreeList(dir, prefix string) (err error) {
+	var d *os.File
+	var fns []string
+	d, err = os.Open(dir)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	fns, err = d.Readdirnames(0)
+	if err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	re := regexp.MustCompile(fmt.Sprintf("%s_(?P<num>[0-9]+)", prefix))
+	for _, fn := range fns {
+		subs := re.FindStringSubmatch(fn)
+		if subs == nil {
+			continue
+		}
+		fp := filepath.Join(dir, fn)
+		if err = os.Remove(fp); err != nil {
+			err = errors.Wrap(err, "")
+		}
 	}
 	return
 }
