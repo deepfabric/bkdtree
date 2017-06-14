@@ -294,6 +294,11 @@ func TestBkdErase(t *testing.T) {
 	}
 }
 
+//TODO: need more clear way to show difference of two structs, maybe skip some fields.
+//Some 3rd libs look related to this need:
+//https://github.com/kylelemons/godebug
+//https://github.com/davecgh/go-spew
+//https://github.com/kr/pretty
 func (bkd *BkdTree) equal(bkd2 *BkdTree) (res bool) {
 	if bkd.bkdCap != bkd2.bkdCap {
 		fmt.Printf("bkd.bkdCap differ, %d %d\n", bkd.bkdCap, bkd2.bkdCap)

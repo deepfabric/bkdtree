@@ -18,5 +18,6 @@ This document defines the roadmap for BKD tree development.
 - [D] disaster recovery - open, close
 - [D] concurrent access - singel writer, multiple reader
 - [D] concurrent access - background compact
+- [ ] make mmap optional
 - [ ] custom error type for invalid arguments, not-permitted operations
 - [ ] performance optimization - (*PointArrayExt).GetPoint
