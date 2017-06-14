@@ -2,12 +2,18 @@ package bkdtree
 
 import (
 	"bytes"
+
+	"github.com/pkg/errors"
 )
 
 //Intersect does window query
 func (bkd *BkdTree) Intersect(visitor IntersectVisitor) (err error) {
 	bkd.rwlock.RLock()
 	defer bkd.rwlock.RUnlock()
+	if !bkd.open {
+		err = errors.Errorf("(*BkdTree).Intersect is not allowed at closed state")
+		return
+	}
 
 	bkd.intersectT0M(visitor)
 	for i := 0; i < len(bkd.trees); i++ {

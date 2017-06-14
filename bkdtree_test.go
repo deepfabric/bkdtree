@@ -370,26 +370,6 @@ func TestBkdOpenClose(t *testing.T) {
 	}
 }
 
-func bkdWriter(abort chan interface{}, bkd *BkdTree, points []Point) {
-FOR_LOOP:
-	for {
-		select {
-		case <-abort:
-			break FOR_LOOP //break for
-		default:
-		}
-		idx := rand.Intn(len(points))
-		_, err := bkd.Erase(points[idx])
-		if err != nil {
-			panic(err)
-		}
-		err = bkd.Insert(points[idx])
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
 func bkdCloser(abort chan interface{}, bkd *BkdTree) {
 	var interval time.Duration = 2 * time.Second
 FOR_LOOP:
@@ -411,6 +391,21 @@ FOR_LOOP:
 	}
 }
 
+func bkdWriter(abort chan interface{}, bkd *BkdTree, points []Point) {
+FOR_LOOP:
+	for {
+		select {
+		case <-abort:
+			break FOR_LOOP //break for
+		default:
+		}
+		idx := rand.Intn(len(points))
+		//TODO: custom error type
+		_, _ = bkd.Erase(points[idx])
+		_ = bkd.Insert(points[idx])
+	}
+}
+
 func bkdReader(abort chan interface{}, bkd *BkdTree, points []Point) {
 FOR_LOOP:
 	for {
@@ -423,9 +418,8 @@ FOR_LOOP:
 		idx1 := rand.Intn(len(points))
 		idx2 := rand.Intn(len(points))
 		visitor := &IntersectCollector{points[idx1], points[idx2], make([]Point, 0)}
-		if err := bkd.Intersect(visitor); err != nil {
-			panic(err)
-		}
+		//TODO: custom error type
+		_ = bkd.Intersect(visitor)
 	}
 }
 

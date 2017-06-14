@@ -86,6 +86,7 @@ type BkdTree struct {
 	t0m         BkdSubTree // T0M in the paper, in-memory buffer.
 	trees       []BkdSubTree
 	rwlock      sync.RWMutex //reader: Intersect, GetCap. writers: Insert, Erase, Open, Close.
+	open        bool         //closed: allow Open, Close; open: allow all operations except Open.
 }
 
 func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
@@ -170,6 +171,7 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		return
 	}
 	err = rmTreeList(dir, prefix)
+	bkd.open = true
 	return
 }
 
@@ -177,6 +179,10 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 func (bkd *BkdTree) Close() (err error) {
 	bkd.rwlock.Lock()
 	defer bkd.rwlock.Unlock()
+	if !bkd.open {
+		return
+	}
+	bkd.open = false
 
 	if err = munmapFile(bkd.t0m.data); err != nil {
 		return
@@ -200,6 +206,10 @@ func (bkd *BkdTree) Close() (err error) {
 func (bkd *BkdTree) Open(bkdCap int, dir, prefix string) (err error) {
 	bkd.rwlock.Lock()
 	defer bkd.rwlock.Unlock()
+	if bkd.open {
+		err = errors.Errorf("(*BkdTree).Open is not allowed at open state")
+		return
+	}
 
 	bkd.bkdCap, bkd.dir, bkd.prefix = bkdCap, dir, prefix
 	var nums []int
@@ -224,6 +234,7 @@ func (bkd *BkdTree) Open(bkdCap int, dir, prefix string) (err error) {
 			return
 		}
 	}
+	bkd.open = true
 	return
 }
 

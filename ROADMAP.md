@@ -16,5 +16,6 @@ This document defines the roadmap for BKD tree development.
 - [D] compatible file format to allow multiple versions
 - [D] performance optimization - mmap, splice, point encoding/decoding etc.
 - [D] disaster recovery - open, close
-- [ ] concurrent access - singel writer, multiple reader
+- [D] concurrent access - singel writer, multiple reader
 - [ ] concurrent access - background compact
+- [ ] custom error type for invalid arguments, not-permitted operations
