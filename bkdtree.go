@@ -228,6 +228,7 @@ func (bkd *BkdTree) Open(dir, prefix string, bkdCap int, cptInterval time.Durati
 	if err = bkd.openT0M(); err != nil {
 		return
 	}
+	bkd.NumPoints = int(bkd.t0m.meta.NumPoints)
 	if nums, err = getTreeList(dir, prefix); err != nil {
 		return
 	}
@@ -245,6 +246,7 @@ func (bkd *BkdTree) Open(dir, prefix string, bkdCap int, cptInterval time.Durati
 		if err = bkd.trees[num].open(fp); err != nil {
 			return
 		}
+		bkd.NumPoints += int(bkd.trees[num].meta.NumPoints)
 	}
 	bkd.cptInterval = cptInterval
 	bkd.cptAbort = make(chan interface{})
