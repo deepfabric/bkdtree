@@ -30,18 +30,7 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 		return
 	}
 	//find the smallest index k in [0, len(trees)) at which trees[k] is empty, or its capacity is no less than the sum of size of t0m + trees[0:k+1]
-	sum := int(bkd.t0m.meta.NumPoints)
-	var k int
-	for k = 0; k < len(bkd.trees); k++ {
-		if bkd.trees[k].meta.NumPoints == 0 {
-			break
-		}
-		sum += int(bkd.trees[k].meta.NumPoints)
-		capK := bkd.t0mCap << uint(k)
-		if capK >= sum {
-			break
-		}
-	}
+	k := bkd.getMinCompactPos()
 	if k == len(bkd.trees) {
 		kd := BkdSubTree{
 			meta: KdTreeExtMeta{
@@ -58,6 +47,30 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 		}
 		bkd.trees = append(bkd.trees, kd)
 	}
+
+	err = bkd.compactTo(k)
+	return
+}
+
+//caclulate the min compoint position. Returns len(bkd.trees) if not found.
+func (bkd *BkdTree) getMinCompactPos() (k int) {
+	//find the smallest index k in [0, len(trees)) at which trees[k] is empty, or its capacity is no less than the sum of size of t0m + trees[0:k+1]
+	sum := int(bkd.t0m.meta.NumPoints)
+	for k = 0; k < len(bkd.trees); k++ {
+		if bkd.trees[k].meta.NumPoints == 0 {
+			return
+		}
+		sum += int(bkd.trees[k].meta.NumPoints)
+		capK := bkd.t0mCap << uint(k)
+		if capK >= sum {
+			return
+		}
+	}
+	return
+}
+
+//compact T0M and trees[0:k+1] into tree[k]. Assumes write lock has been acquired.
+func (bkd *BkdTree) compactTo(k int) (err error) {
 	//extract all points from t0m and trees[0:k+1] into a file F
 	tmpFpK := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d.tmp", bkd.prefix, k))
 	fpK := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, k))

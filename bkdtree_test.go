@@ -75,7 +75,8 @@ func TestBkdInsert(t *testing.T) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	cptInterval := 30 * time.Minute //use a large interval in order to avoid compact during test
+	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix, cptInterval)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -122,7 +123,8 @@ func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	cptInterval := 30 * time.Minute //use a large interval in order to avoid compact during test
+	bkd, err = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix, cptInterval)
 	if err != nil {
 		return
 	}
@@ -329,6 +331,10 @@ func (bkd *BkdTree) equal(bkd2 *BkdTree) (res bool) {
 		fmt.Printf("bkd.prefix differ, %s %s\n", bkd.prefix, bkd2.prefix)
 		return
 	}
+	if bkd.cptInterval != bkd2.cptInterval {
+		fmt.Printf("bkd.cptInterval differ, %v %v\n", bkd.cptInterval, bkd2.cptInterval)
+		return
+	}
 	if bkd.t0m.meta != bkd2.t0m.meta {
 		fmt.Printf("bkd.t0m meta differ, %v %v\n", bkd.t0m.meta, bkd2.t0m.meta)
 		return
@@ -362,7 +368,7 @@ func TestBkdOpenClose(t *testing.T) {
 	}
 
 	bkd2 = &BkdTree{}
-	if err = bkd2.Open(bkd.bkdCap, bkd.dir, bkd.prefix); err != nil {
+	if err = bkd2.Open(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err != nil {
 		t.Fatalf("%+v", err)
 	}
 	if !bkd.equal(bkd2) {
@@ -370,24 +376,89 @@ func TestBkdOpenClose(t *testing.T) {
 	}
 }
 
+func TestBkdCompact(t *testing.T) {
+	var bkd *BkdTree
+	var points []Point
+	var err error
+	var maxVal uint64 = 1000
+	bkd, points, err = prepareBkdTree(maxVal)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	/*
+		points distribution of bkd: T0M(1), 1, 2, 4, 8, 16
+		test case:
+		1. remove all points of trees[len-2] and trees[len-4].
+		2. compact
+		3. verify points of T0M and trees 0..len-2(inclusive) are moved to trees[len-2].
+	*/
+	treeLen := len(bkd.trees)
+	tree1End := bkd.t0mCap << uint(treeLen-1)
+	tree2End := tree1End + bkd.t0mCap<<uint(treeLen-2)
+	tree3End := tree2End + bkd.t0mCap<<uint(treeLen-3)
+	tree4End := tree3End + bkd.t0mCap<<uint(treeLen-4)
+
+	sum := int(bkd.t0m.meta.NumPoints)
+	for i := 0; i < treeLen; i++ {
+		if i == treeLen-4 || i == treeLen-2 || i == treeLen-1 {
+			continue
+		}
+		sum += int(bkd.trees[i].meta.NumPoints)
+	}
+
+	for i := tree1End; i < tree2End; i++ {
+		found, err := bkd.Erase(points[i])
+		if err != nil {
+			t.Fatalf("%+v", err)
+		} else if !found {
+			t.Fatalf("point %v not found", points[i])
+		}
+	}
+
+	for i := tree3End; i < tree4End; i++ {
+		found, err := bkd.Erase(points[i])
+		if err != nil {
+			t.Fatalf("%+v", err)
+		} else if !found {
+			t.Fatalf("point %v not found", points[i])
+		}
+	}
+
+	if err = bkd.Compact(); err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	if bkd.t0m.meta.NumPoints != 0 {
+		t.Fatalf("bkd.t0m.NumPoints is incorrect, is %d, want %d", bkd.t0m.meta.NumPoints, 0)
+	}
+	for i := 0; i < treeLen-2; i++ {
+		if bkd.trees[i].meta.NumPoints != 0 {
+			t.Fatalf("bkd.trees[%d].NumPoints is incorrect, is %d, want %d", i, bkd.trees[i].meta.NumPoints, 0)
+		}
+	}
+	if int(bkd.trees[treeLen-2].meta.NumPoints) != sum {
+		t.Fatalf("bkd.trees[%d].NumPoints is incorrect, is %d, want %d", treeLen-2, int(bkd.trees[treeLen-2].meta.NumPoints), sum)
+	}
+}
+
 func bkdCloser(abort chan interface{}, bkd *BkdTree) {
-	var interval time.Duration = 2 * time.Second
+	var interval time.Duration = 5 * time.Second
 FOR_LOOP:
 	for {
 		select {
 		case <-abort:
 			break FOR_LOOP //break for
-		default:
+		default: // adding default makes select nonblocking
 		}
 
 		if err := bkd.Close(); err != nil {
 			panic(err)
 		}
-		if err := bkd.Open(bkd.bkdCap, bkd.dir, bkd.prefix); err != nil {
+		if err := bkd.Open(bkd.dir, bkd.prefix, bkd.bkdCap, 3*time.Second); err != nil {
 			panic(err)
 		}
-		//sleep interval
-		<-time.After(interval)
+		time.Sleep(interval)
 	}
 }
 
@@ -396,7 +467,7 @@ FOR_LOOP:
 	for {
 		select {
 		case <-abort:
-			break FOR_LOOP //break for
+			break FOR_LOOP
 		default:
 		}
 		idx := rand.Intn(len(points))
@@ -411,7 +482,7 @@ FOR_LOOP:
 	for {
 		select {
 		case <-abort:
-			break FOR_LOOP //break for
+			break FOR_LOOP
 		default:
 		}
 
@@ -432,27 +503,19 @@ func TestBkdConcurrentOps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	chs := make([]chan interface{}, 0)
+	ch := make(chan interface{})
 	for i := 0; i < 1; i++ {
-		ch := make(chan interface{}, 1)
-		chs = append(chs, ch)
 		go bkdCloser(ch, bkd)
 	}
 	for i := 0; i < 3; i++ {
-		ch := make(chan interface{}, 1)
-		chs = append(chs, ch)
 		go bkdWriter(ch, bkd, points)
 	}
 	for i := 0; i < 5; i++ {
-		ch := make(chan interface{}, 1)
-		chs = append(chs, ch)
 		go bkdReader(ch, bkd, points)
 	}
 	//sleep a while, send message to abort readers and writers
-	<-time.After(60 * time.Second)
-	for _, ch := range chs {
-		ch <- "abort"
-	}
-	<-time.After(10 * time.Second)
+	time.Sleep(20 * time.Second)
+	close(ch)
+	time.Sleep(1 * time.Second)
 	fmt.Println("children shall all have quited")
 }

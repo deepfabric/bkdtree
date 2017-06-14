@@ -1,6 +1,9 @@
 package bkdtree
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func BenchmarkBkdInsert(b *testing.B) {
 	t0mCap := 1000
@@ -12,7 +15,8 @@ func BenchmarkBkdInsert(b *testing.B) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	cptInterval := 30 * time.Minute //use a large interval in order to avoid compact during test
+	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix, cptInterval)
 	if err != nil {
 		b.Fatalf("%+v", err)
 	}

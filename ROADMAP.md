@@ -14,8 +14,9 @@ This document defines the roadmap for BKD tree development.
 - [D] erase
 - [D] intersect
 - [D] compatible file format to allow multiple versions
-- [D] performance optimization - mmap, splice, point encoding/decoding etc.
+- [D] performance optimization - mmap, point encoding/decoding etc.
 - [D] disaster recovery - open, close
 - [D] concurrent access - singel writer, multiple reader
-- [ ] concurrent access - background compact
+- [D] concurrent access - background compact
 - [ ] custom error type for invalid arguments, not-permitted operations
+- [ ] performance optimization - (*PointArrayExt).GetPoint
