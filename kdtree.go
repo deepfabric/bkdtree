@@ -34,14 +34,14 @@ type IntersectVisitor interface {
 }
 
 type IntersectCollector struct {
-	lowPoint  Point
-	highPoint Point
-	points    []Point
+	LowPoint  Point
+	HighPoint Point
+	Points    []Point
 }
 
-func (d *IntersectCollector) GetLowPoint() Point     { return d.lowPoint }
-func (d *IntersectCollector) GetHighPoint() Point    { return d.highPoint }
-func (d *IntersectCollector) VisitPoint(point Point) { d.points = append(d.points, point) }
+func (d *IntersectCollector) GetLowPoint() Point     { return d.LowPoint }
+func (d *IntersectCollector) GetHighPoint() Point    { return d.HighPoint }
+func (d *IntersectCollector) VisitPoint(point Point) { d.Points = append(d.Points, point) }
 
 type KdTree struct {
 	root     KdTreeNode

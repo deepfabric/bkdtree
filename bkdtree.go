@@ -90,7 +90,7 @@ type BkdTree struct {
 	cptInterval time.Duration    //background compact interval
 	cptAbort    chan interface{} //notify background compact to abort
 	cptDone     chan interface{} //receive the notify that background compace has quited
-	rwlock      sync.RWMutex     //reader: Intersect, GetCap. writers: Insert, Erase, Open, Close, Compact.
+	rwlock      sync.RWMutex     //reader: Intersect, GetCap. writers: Insert, Erase, Open, Close, Destroy, Compact.
 	open        bool             //closed: allow Open, Close; open: allow all operations except Open.
 }
 
@@ -150,7 +150,7 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 	return
 }
 
-//NewBkdTree creates a BKDTree. This is used for construct a BkdTree from scratch.
+//NewBkdTree creates a BKDTree. This is used for construct a BkdTree from scratch. Existing files, if any, will be removed.
 func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string, cptInterval time.Duration) (bkd *BkdTree, err error) {
 	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 ||
 		(bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) ||
@@ -185,10 +185,33 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 	return
 }
 
-//Close unmap and close all files
+//Destroy close and remove all files
+func (bkd *BkdTree) Destroy() (err error) {
+	bkd.rwlock.Lock()
+	defer bkd.rwlock.Unlock()
+	if err = bkd.close(); err != nil {
+		return
+	}
+	if err = rmTreeList(bkd.dir, bkd.prefix); err != nil {
+		return
+	}
+	fpT0M := filepath.Join(bkd.dir, fmt.Sprintf("%s_t0m", bkd.prefix))
+	if err = os.Remove(fpT0M); err != nil {
+		return
+	}
+	return
+}
+
+//Close close unmap and all files
 func (bkd *BkdTree) Close() (err error) {
 	bkd.rwlock.Lock()
 	defer bkd.rwlock.Unlock()
+	err = bkd.close()
+	return
+}
+
+//close close all files without holding the write lock
+func (bkd *BkdTree) close() (err error) {
 	if !bkd.open {
 		return
 	}

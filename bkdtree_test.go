@@ -159,11 +159,11 @@ func TestBkdIntersect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	if len(visitor.points) <= 0 {
+	if len(visitor.Points) <= 0 {
 		t.Errorf("found 0 matchs, however some expected")
 	}
 	var matched int
-	for _, point := range visitor.points {
+	for _, point := range visitor.Points {
 		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
@@ -184,8 +184,8 @@ func TestBkdIntersect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	if len(visitor.points) != len(points) {
-		t.Errorf("found %d matchs, want %d", len(visitor.points), len(points))
+	if len(visitor.Points) != len(points) {
+		t.Errorf("found %d matchs, want %d", len(visitor.Points), len(points))
 	}
 }
 
@@ -230,7 +230,7 @@ func countPoint(bkd *BkdTree, point Point) (cnt int, err error) {
 	if err != nil {
 		return
 	}
-	for _, p := range visitor.points {
+	for _, p := range visitor.Points {
 		if p.Equal(point) {
 			cnt++
 		}
@@ -292,6 +292,24 @@ func TestBkdErase(t *testing.T) {
 		t.Fatalf("%+v", err)
 	} else if cnt != 1 {
 		t.Errorf("point %v still exists", target)
+	}
+}
+
+func TestBkdDestroy(t *testing.T) {
+	var bkd *BkdTree
+	var err error
+	var maxVal uint64 = 1000
+	bkd, _, err = prepareBkdTree(maxVal)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	if err = bkd.Destroy(); err != nil {
+		t.Fatalf("%+v", err)
+	}
+	//Verify t0m has been removed
+	if err = bkd.Open(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err == nil {
+		t.Fatalf("%s is still there", bkd.t0m.f.Name())
 	}
 }
 

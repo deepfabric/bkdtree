@@ -65,7 +65,7 @@ func BenchmarkBkdIntersect(b *testing.B) {
 		err = bkd.Intersect(visitor)
 		if err != nil {
 			b.Fatalf("%+v", err)
-		} else if len(visitor.points) <= 0 {
+		} else if len(visitor.Points) <= 0 {
 			b.Errorf("found 0 matchs, however some expected")
 		}
 	}

@@ -19,10 +19,10 @@ func TestKdIntersectSome(t *testing.T) {
 	kdt.Intersect(visitor)
 
 	//fmt.Printf("%v\n", visitor.points)
-	if len(visitor.points) <= 0 {
+	if len(visitor.Points) <= 0 {
 		t.Errorf("found 0 matchs, however some expected")
 	}
-	for _, point := range visitor.points {
+	for _, point := range visitor.Points {
 		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
@@ -42,8 +42,8 @@ func TestKdIntersectAll(t *testing.T) {
 	highPoint := Point{[]uint64{maxVal, maxVal, maxVal}, 0}
 	visitor := &IntersectCollector{lowPoint, highPoint, make([]Point, 0, size)}
 	kdt.Intersect(visitor)
-	if len(visitor.points) != size {
-		t.Errorf("found %v matchs, however %v expected", len(visitor.points), size)
+	if len(visitor.Points) != size {
+		t.Errorf("found %v matchs, however %v expected", len(visitor.Points), size)
 	}
 }
 
@@ -62,7 +62,7 @@ func TestKdIntersect(t *testing.T) {
 	kdt.Intersect(visitor)
 
 	//fmt.Printf("%v\n", visitor.points)
-	for _, point := range visitor.points {
+	for _, point := range visitor.Points {
 		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
@@ -88,11 +88,11 @@ func TestKdInsert(t *testing.T) {
 	kdt.Intersect(visitor)
 
 	//fmt.Printf("%v\n", visitor.points)
-	if len(visitor.points) <= 0 {
+	if len(visitor.Points) <= 0 {
 		t.Errorf("found 0 matchs, however some expected")
 	}
 	numMatchs := 0
-	for _, point := range visitor.points {
+	for _, point := range visitor.Points {
 		isInside := point.Inside(lowPoint, highPoint)
 		if !isInside {
 			t.Errorf("point %v is ouside of range", point)
@@ -123,7 +123,7 @@ func TestKdErase(t *testing.T) {
 	kdt.Intersect(visitor)
 
 	//fmt.Printf("%v\n", visitor.points)
-	if len(visitor.points) != 0 {
-		t.Errorf("found %v matchs, however 0 expected", len(visitor.points))
+	if len(visitor.Points) != 0 {
+		t.Errorf("found %v matchs, however 0 expected", len(visitor.Points))
 	}
 }
