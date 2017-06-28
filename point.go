@@ -21,6 +21,8 @@ type PointArray interface {
 	Append(point Point)
 }
 
+type PointList []Point
+
 type PointArrayMem struct {
 	points []Point
 	byDim  int
@@ -94,6 +96,26 @@ func (p *Point) Decode(b []byte, numDims int, bytesPerDim int) {
 	}
 	p.UserData = binary.BigEndian.Uint64(b[numDims*bytesPerDim:])
 	return
+}
+
+// Len is part of sort.Interface.
+func (s PointList) Len() int {
+	return len(s)
+}
+
+// Swap is part of sort.Interface.
+func (s PointList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// Less is part of sort.Interface.
+func (s PointList) Less(i, j int) bool {
+	for d := 0; d < len(s[0].Vals); d++ {
+		if s[i].Vals[d] != s[j].Vals[d] {
+			return s[i].Vals[d] < s[j].Vals[d]
+		}
+	}
+	return false
 }
 
 // Len is part of sort.Interface.
