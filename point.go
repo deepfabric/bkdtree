@@ -12,6 +12,9 @@ type Point struct {
 	UserData uint64
 }
 
+// PointHeap is a min-heap of points.
+type PointHeap []Point
+
 type PointArray interface {
 	sort.Interface
 	GetPoint(idx int) Point
@@ -20,8 +23,6 @@ type PointArray interface {
 	Erase(point Point) bool
 	Append(point Point)
 }
-
-type PointList []Point
 
 type PointArrayMem struct {
 	points []Point
@@ -45,6 +46,15 @@ func (p *Point) Inside(lowPoint, highPoint Point) (isInside bool) {
 	}
 	isInside = true
 	return
+}
+
+func (p Point) LessThan(rhs Point) (res bool) {
+	for dim := 0; dim < len(p.Vals); dim++ {
+		if p.Vals[dim] != rhs.Vals[dim] {
+			return p.Vals[dim] < rhs.Vals[dim]
+		}
+	}
+	return p.UserData < rhs.UserData
 }
 
 func (p *Point) Equal(rhs Point) (res bool) {
@@ -99,23 +109,34 @@ func (p *Point) Decode(b []byte, numDims int, bytesPerDim int) {
 }
 
 // Len is part of sort.Interface.
-func (s PointList) Len() int {
+func (s PointHeap) Len() int {
 	return len(s)
 }
 
 // Swap is part of sort.Interface.
-func (s PointList) Swap(i, j int) {
+func (s PointHeap) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
 // Less is part of sort.Interface.
-func (s PointList) Less(i, j int) bool {
-	for d := 0; d < len(s[0].Vals); d++ {
-		if s[i].Vals[d] != s[j].Vals[d] {
-			return s[i].Vals[d] < s[j].Vals[d]
-		}
-	}
-	return false
+func (s PointHeap) Less(i, j int) bool {
+	return s[i].LessThan(s[j])
+}
+
+// Push is part of heap.Interface.
+func (s *PointHeap) Push(x interface{}) {
+	// Push and Pop use pointer receivers because they modify the slice's length,
+	// not just its contents.
+	*s = append(*s, x.(Point))
+}
+
+// Pop is part of heap.Interface.
+func (s *PointHeap) Pop() interface{} {
+	old := *s
+	n := len(old)
+	x := old[n-1]
+	*s = old[0 : n-1]
+	return x
 }
 
 // Len is part of sort.Interface.

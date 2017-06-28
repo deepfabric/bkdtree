@@ -2,6 +2,7 @@ package bkdtree
 
 import (
 	"bytes"
+	"container/heap"
 	"math/rand"
 	"os"
 	"testing"
@@ -93,6 +94,43 @@ func NewRandPoints(numDims int, maxVal uint64, size int) (points []Point) {
 		points = append(points, point)
 	}
 	return
+}
+
+func TestPointHeap(t *testing.T) {
+	numDims := 3
+	maxVal := uint64(100)
+	size := 10000
+	points := NewRandPoints(numDims, maxVal, size)
+	/*There are several ways to build a heap from array:
+
+	s := PointHeap(points)
+	h := &s
+	heap.Init(h)
+
+	h := &PointHeap{}
+	*h = points
+	heap.Init(h)
+
+	s := &points
+	h := (*PointHeap)(s)
+	heap.Init(h)
+
+	h := &PointHeap{}
+	for i := 0; i < len(points); i++ {
+		heap.Push(h, points[i])
+	}
+	*/
+	s := PointHeap(points)
+	h := &s
+	heap.Init(h)
+	var prevPoint *Point
+	for h.Len() > 0 {
+		p := heap.Pop(h).(Point)
+		if prevPoint != nil && p.LessThan(*prevPoint) {
+			t.Fatalf("incorrect order of %v %v", *prevPoint, p)
+		}
+		prevPoint = &p
+	}
 }
 
 func TestPointArrayExt_ToMem(t *testing.T) {
