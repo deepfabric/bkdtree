@@ -12,8 +12,11 @@ type Point struct {
 	UserData uint64
 }
 
-// PointHeap is a min-heap of points.
-type PointHeap []Point
+// PointMinHeap is a min-heap of points.
+type PointMinHeap []Point
+
+// PointMaxHeap is a max-heap of points.
+type PointMaxHeap []Point
 
 type PointArray interface {
 	sort.Interface
@@ -109,29 +112,60 @@ func (p *Point) Decode(b []byte, numDims int, bytesPerDim int) {
 }
 
 // Len is part of sort.Interface.
-func (s PointHeap) Len() int {
+func (s PointMinHeap) Len() int {
 	return len(s)
 }
 
 // Swap is part of sort.Interface.
-func (s PointHeap) Swap(i, j int) {
+func (s PointMinHeap) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
 // Less is part of sort.Interface.
-func (s PointHeap) Less(i, j int) bool {
+func (s PointMinHeap) Less(i, j int) bool {
 	return s[i].LessThan(s[j])
 }
 
 // Push is part of heap.Interface.
-func (s *PointHeap) Push(x interface{}) {
+func (s *PointMinHeap) Push(x interface{}) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
 	*s = append(*s, x.(Point))
 }
 
 // Pop is part of heap.Interface.
-func (s *PointHeap) Pop() interface{} {
+func (s *PointMinHeap) Pop() interface{} {
+	old := *s
+	n := len(old)
+	x := old[n-1]
+	*s = old[0 : n-1]
+	return x
+}
+
+// Len is part of sort.Interface.
+func (s PointMaxHeap) Len() int {
+	return len(s)
+}
+
+// Swap is part of sort.Interface.
+func (s PointMaxHeap) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// Less is part of sort.Interface.
+func (s PointMaxHeap) Less(i, j int) bool {
+	return s[j].LessThan(s[i])
+}
+
+// Push is part of heap.Interface.
+func (s *PointMaxHeap) Push(x interface{}) {
+	// Push and Pop use pointer receivers because they modify the slice's length,
+	// not just its contents.
+	*s = append(*s, x.(Point))
+}
+
+// Pop is part of heap.Interface.
+func (s *PointMaxHeap) Pop() interface{} {
 	old := *s
 	n := len(old)
 	x := old[n-1]

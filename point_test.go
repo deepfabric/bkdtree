@@ -3,9 +3,14 @@ package bkdtree
 import (
 	"bytes"
 	"container/heap"
+	"fmt"
 	"math/rand"
 	"os"
 	"testing"
+
+	"sort"
+
+	"github.com/juju/testing/checkers"
 )
 
 type CaseInside struct {
@@ -103,33 +108,63 @@ func TestPointHeap(t *testing.T) {
 	points := NewRandPoints(numDims, maxVal, size)
 	/*There are several ways to build a heap from array:
 
-	s := PointHeap(points)
+	s := PointMinHeap(points)
 	h := &s
 	heap.Init(h)
 
-	h := &PointHeap{}
+	h := &PointMinHeap{}
 	*h = points
 	heap.Init(h)
 
 	s := &points
-	h := (*PointHeap)(s)
+	h := (*PointMinHeap)(s)
 	heap.Init(h)
 
-	h := &PointHeap{}
+	h := &PointMinHeap{}
 	for i := 0; i < len(points); i++ {
 		heap.Push(h, points[i])
 	}
 	*/
-	s := PointHeap(points)
-	h := &s
+	h := &PointMinHeap{}
+	*h = points
 	heap.Init(h)
 	var prevPoint *Point
+	var smallestN1 []Point
+	var smallestN2 []Point
+	N := 100
 	for h.Len() > 0 {
 		p := heap.Pop(h).(Point)
 		if prevPoint != nil && p.LessThan(*prevPoint) {
 			t.Fatalf("incorrect order of %v %v", *prevPoint, p)
 		}
 		prevPoint = &p
+		if len(smallestN1) < N {
+			smallestN1 = append(smallestN1, p)
+		}
+	}
+
+	/*Inspired by https://stackoverflow.com/questions/5845810/constant-size-priority-queue-insert-first-or-delete-first
+	h2 is a max-heap which stores the N smallest points found so far. The top (largest) is at index len(*h2)-1.
+	*/
+	h2 := &PointMaxHeap{}
+	heap.Init(h2)
+	for i := 0; i < len(points); i++ {
+		lenH := len(*h2)
+		if lenH < N {
+			h2.Push(points[i])
+		} else if points[i].LessThan((*h2)[lenH-1]) {
+			(*h2)[lenH-1] = points[i]
+			heap.Fix(h2, lenH-1)
+		}
+	}
+	s := PointMinHeap(*h2)
+	sort.Sort(&s)
+	smallestN2 = s
+	isEqual, err := checkers.DeepEqual(smallestN1, smallestN2)
+	if !isEqual {
+		fmt.Printf("topN1: %+v\n", smallestN1)
+		fmt.Printf("topN2: %+v\n", smallestN2)
+		t.Fatalf("topN1 differs with topN2. %+v", err)
 	}
 }
 
