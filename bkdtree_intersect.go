@@ -32,8 +32,8 @@ func (bkd *BkdTree) intersectT0M(visitor IntersectVisitor) {
 		data:        bkd.t0m.data,
 		numPoints:   int(bkd.t0m.meta.NumPoints),
 		byDim:       0, //not used
-		bytesPerDim: bkd.bytesPerDim,
-		numDims:     bkd.numDims,
+		bytesPerDim: bkd.BytesPerDim,
+		numDims:     bkd.NumDims,
 		pointSize:   bkd.pointSize,
 	}
 	for i := 0; i < pae.numPoints; i++ {
@@ -75,8 +75,8 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, data []byte,
 				data:        data[int(child.Offset):],
 				numPoints:   int(child.NumPoints),
 				byDim:       0, //not used
-				bytesPerDim: bkd.bytesPerDim,
-				numDims:     bkd.numDims,
+				bytesPerDim: bkd.BytesPerDim,
+				numDims:     bkd.NumDims,
 				pointSize:   bkd.pointSize,
 			}
 			for i := 0; i < pae.numPoints; i++ {

@@ -41,8 +41,8 @@ func (bkd *BkdTree) eraseT0M(point Point) (found bool) {
 		data:        bkd.t0m.data,
 		numPoints:   int(bkd.t0m.meta.NumPoints),
 		byDim:       0, //not used
-		bytesPerDim: bkd.bytesPerDim,
-		numDims:     bkd.numDims,
+		bytesPerDim: bkd.BytesPerDim,
+		numDims:     bkd.NumDims,
 		pointSize:   bkd.pointSize,
 	}
 	found = pae.Erase(point)
@@ -89,8 +89,8 @@ func (bkd *BkdTree) eraseNode(point Point, data []byte, meta *KdTreeExtMeta, nod
 				data:        data[int(child.Offset):],
 				numPoints:   int(child.NumPoints),
 				byDim:       0, //not used
-				bytesPerDim: bkd.bytesPerDim,
-				numDims:     bkd.numDims,
+				bytesPerDim: bkd.BytesPerDim,
+				numDims:     bkd.NumDims,
 				pointSize:   bkd.pointSize,
 			}
 			found = pae.Erase(point)

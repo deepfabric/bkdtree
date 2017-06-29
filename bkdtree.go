@@ -77,11 +77,11 @@ type BkdSubTree struct {
 type BkdTree struct {
 	bkdCap      int // N in the paper
 	t0mCap      int // M in the paper, the capacity of in-memory buffer
-	numDims     int // number of point dimensions
-	bytesPerDim int // number of bytes of each encoded dimension
+	leafCap     int // limit of points a leaf node can hold
+	intraCap    int // limit of children of a intra node can hold
+	NumDims     int // number of point dimensions
+	BytesPerDim int // number of bytes of each encoded dimension
 	pointSize   int
-	leafCap     int    // limit of points a leaf node can hold
-	intraCap    int    // limit of children of a intra node can hold
 	dir         string //directory of files which hold the persisted kdtrees
 	prefix      string //prefix of file names
 	NumPoints   int
@@ -161,11 +161,11 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 	bkd = &BkdTree{
 		bkdCap:      bkdCap,
 		t0mCap:      t0mCap,
-		numDims:     numDims,
-		bytesPerDim: bytesPerDim,
-		pointSize:   numDims*bytesPerDim + 8,
 		leafCap:     leafCap,
 		intraCap:    intraCap,
+		NumDims:     numDims,
+		BytesPerDim: bytesPerDim,
+		pointSize:   numDims*bytesPerDim + 8,
 		dir:         dir,
 		prefix:      prefix,
 		//t0m is initialized later
@@ -298,8 +298,8 @@ func (bkd *BkdTree) initT0M() (err error) {
 		NumPoints:    0,
 		LeafCap:      uint16(bkd.leafCap),
 		IntraCap:     uint16(bkd.intraCap),
-		NumDims:      uint8(bkd.numDims),
-		BytesPerDim:  uint8(bkd.bytesPerDim),
+		NumDims:      uint8(bkd.NumDims),
+		BytesPerDim:  uint8(bkd.BytesPerDim),
 		PointSize:    uint8(bkd.pointSize),
 		FormatVer:    0,
 	}
@@ -329,8 +329,8 @@ func (bkd *BkdTree) openT0M() (err error) {
 		return
 	}
 	bkd.t0mCap = (len(bkd.t0m.data) - KdTreeExtMetaSize) / int(bkd.t0m.meta.PointSize)
-	bkd.numDims = int(bkd.t0m.meta.NumDims)
-	bkd.bytesPerDim = int(bkd.t0m.meta.BytesPerDim)
+	bkd.NumDims = int(bkd.t0m.meta.NumDims)
+	bkd.BytesPerDim = int(bkd.t0m.meta.BytesPerDim)
 	bkd.pointSize = int(bkd.t0m.meta.PointSize)
 	bkd.leafCap = int(bkd.t0m.meta.LeafCap)
 	bkd.intraCap = int(bkd.t0m.meta.IntraCap)

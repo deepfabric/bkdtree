@@ -131,7 +131,7 @@ func TestPointHeap(t *testing.T) {
 	var prevPoint *Point
 	var smallestN1 []Point
 	var smallestN2 []Point
-	N := 100
+	N := 1000
 	for h.Len() > 0 {
 		p := heap.Pop(h).(Point)
 		if prevPoint != nil && p.LessThan(*prevPoint) {
@@ -144,17 +144,16 @@ func TestPointHeap(t *testing.T) {
 	}
 
 	/*Inspired by https://stackoverflow.com/questions/5845810/constant-size-priority-queue-insert-first-or-delete-first
-	h2 is a max-heap which stores the N smallest points found so far. The top (largest) is at index len(*h2)-1.
+	h2 is a max-heap which stores the N smallest points found so far. The top (largest) is at index zero.
 	*/
 	h2 := &PointMaxHeap{}
 	heap.Init(h2)
 	for i := 0; i < len(points); i++ {
-		lenH := len(*h2)
-		if lenH < N {
+		if len(*h2) < N {
 			h2.Push(points[i])
-		} else if points[i].LessThan((*h2)[lenH-1]) {
-			(*h2)[lenH-1] = points[i]
-			heap.Fix(h2, lenH-1)
+		} else if points[i].LessThan((*h2)[0]) {
+			(*h2)[0] = points[i]
+			heap.Fix(h2, 0)
 		}
 	}
 	s := PointMinHeap(*h2)
@@ -162,9 +161,9 @@ func TestPointHeap(t *testing.T) {
 	smallestN2 = s
 	isEqual, err := checkers.DeepEqual(smallestN1, smallestN2)
 	if !isEqual {
-		fmt.Printf("topN1: %+v\n", smallestN1)
-		fmt.Printf("topN2: %+v\n", smallestN2)
-		t.Fatalf("topN1 differs with topN2. %+v", err)
+		fmt.Printf("smallestN1: %+v\n", smallestN1)
+		fmt.Printf("smallestN2: %+v\n", smallestN2)
+		t.Fatalf("smallestN1 and smallestN2 %+v", err)
 	}
 }
 

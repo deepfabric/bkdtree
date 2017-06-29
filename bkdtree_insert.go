@@ -39,8 +39,8 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 				NumPoints:    0,
 				LeafCap:      uint16(bkd.leafCap),
 				IntraCap:     uint16(bkd.intraCap),
-				NumDims:      uint8(bkd.numDims),
-				BytesPerDim:  uint8(bkd.bytesPerDim),
+				NumDims:      uint8(bkd.NumDims),
+				BytesPerDim:  uint8(bkd.BytesPerDim),
 				PointSize:    uint8(bkd.pointSize),
 				FormatVer:    0,
 			},
@@ -144,8 +144,8 @@ func (bkd *BkdTree) insertT0M(point Point) {
 		data:        bkd.t0m.data,
 		numPoints:   int(bkd.t0m.meta.NumPoints),
 		byDim:       0, //not used
-		bytesPerDim: bkd.bytesPerDim,
-		numDims:     bkd.numDims,
+		bytesPerDim: bkd.BytesPerDim,
+		numDims:     bkd.NumDims,
 		pointSize:   bkd.pointSize,
 	}
 	pae.Append(point)
@@ -239,8 +239,8 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 		NumPoints:    uint64(numPoints),
 		LeafCap:      uint16(bkd.leafCap),
 		IntraCap:     uint16(bkd.intraCap),
-		NumDims:      uint8(bkd.numDims),
-		BytesPerDim:  uint8(bkd.bytesPerDim),
+		NumDims:      uint8(bkd.NumDims),
+		BytesPerDim:  uint8(bkd.BytesPerDim),
 		PointSize:    uint8(bkd.pointSize),
 		FormatVer:    0,
 	}
@@ -267,7 +267,7 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, data []byte, begin, end, dept
 		return
 	}
 
-	splitDim := depth % bkd.numDims
+	splitDim := depth % bkd.NumDims
 	numStrips := (end - begin + bkd.leafCap - 1) / bkd.leafCap
 	if numStrips > bkd.intraCap {
 		numStrips = bkd.intraCap
@@ -277,8 +277,8 @@ func (bkd *BkdTree) createKdTreeExt(tmpF *os.File, data []byte, begin, end, dept
 		data:        data[begin*bkd.pointSize:],
 		numPoints:   end - begin,
 		byDim:       splitDim,
-		bytesPerDim: bkd.bytesPerDim,
-		numDims:     bkd.numDims,
+		bytesPerDim: bkd.BytesPerDim,
+		numDims:     bkd.NumDims,
 		pointSize:   bkd.pointSize,
 	}
 	splitValues, splitPoses := SplitPoints(&pae, numStrips)
