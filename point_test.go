@@ -303,11 +303,11 @@ func TestSplitPoints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	data, err := mmapFile(tmpF)
+	data, err := FileMmap(tmpF)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
-	defer munmapFile(data)
+	defer FileMunmap(data)
 	pae.data = data
 	for dim := 0; dim < numDims; dim++ {
 		pae.byDim = dim

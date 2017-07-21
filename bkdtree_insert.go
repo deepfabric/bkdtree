@@ -101,7 +101,7 @@ func (bkd *BkdTree) compactTo(k int) (err error) {
 	for i := 0; i <= k; i++ {
 		if bkd.trees[i].meta.NumPoints <= 0 {
 			continue
-		} else if err = munmapFile(bkd.trees[i].data); err != nil {
+		} else if err = FileMunmap(bkd.trees[i].data); err != nil {
 			return
 		} else if err = bkd.trees[i].f.Close(); err != nil {
 			err = errors.Wrap(err, "")
@@ -121,7 +121,7 @@ func (bkd *BkdTree) compactTo(k int) (err error) {
 		err = errors.Wrap(err, "")
 		return
 	}
-	data, err := mmapFile(fK)
+	data, err := FileMmap(fK)
 	if err != nil {
 		return
 	}
@@ -221,10 +221,10 @@ func (bkd *BkdTree) bulkLoad(tmpF *os.File) (meta *KdTreeExtMeta, err error) {
 		return
 	}
 	var data []byte
-	if data, err = mmapFile(tmpF); err != nil {
+	if data, err = FileMmap(tmpF); err != nil {
 		return
 	}
-	defer munmapFile(data)
+	defer FileMunmap(data)
 
 	numPoints := int(pointsOffEnd / int64(bkd.pointSize))
 	rootOff, err1 := bkd.createKdTreeExt(tmpF, data, 0, numPoints, 0)

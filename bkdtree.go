@@ -1,22 +1,16 @@
 package bkdtree
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
-	"syscall"
-
-	"bytes"
-
 	"regexp"
-
+	"sort"
 	"strconv"
-
 	"sync"
-
 	"time"
 
 	"github.com/pkg/errors"
@@ -219,7 +213,7 @@ func (bkd *BkdTree) close() (err error) {
 	close(bkd.cptAbort)
 	<-bkd.cptDone
 
-	if err = munmapFile(bkd.t0m.data); err != nil {
+	if err = FileMunmap(bkd.t0m.data); err != nil {
 		return
 	} else if err = bkd.t0m.f.Close(); err != nil {
 		return
@@ -228,7 +222,7 @@ func (bkd *BkdTree) close() (err error) {
 		if bkd.trees[i].meta.NumPoints == 0 {
 			continue
 		}
-		if err = munmapFile(bkd.trees[i].data); err != nil {
+		if err = FileMunmap(bkd.trees[i].data); err != nil {
 			return
 		} else if err = bkd.trees[i].f.Close(); err != nil {
 			return
@@ -310,7 +304,7 @@ func (bkd *BkdTree) initT0M() (err error) {
 	if err = binary.Write(fT0M, binary.BigEndian, &meta); err != nil {
 		err = errors.Wrap(err, "")
 	}
-	data, err := mmapFile(fT0M)
+	data, err := FileMmap(fT0M)
 	if err != nil {
 		return
 	}
@@ -342,7 +336,7 @@ func (bst *BkdSubTree) open(fp string) (err error) {
 		err = errors.Wrap(err, "")
 		return
 	}
-	if bst.data, err = mmapFile(bst.f); err != nil {
+	if bst.data, err = FileMmap(bst.f); err != nil {
 		return
 	}
 	br := bytes.NewReader(bst.data[len(bst.data)-KdTreeExtMetaSize:])
@@ -407,36 +401,6 @@ func rmTreeList(dir, prefix string) (err error) {
 		if err = os.Remove(fp); err != nil {
 			err = errors.Wrap(err, "")
 		}
-	}
-	return
-}
-
-//https://medium.com/@arpith/adventures-with-mmap-463b33405223
-func mmapFile(f *os.File) (data []byte, err error) {
-	info, err1 := f.Stat()
-	if err1 != nil {
-		err = errors.Wrap(err1, "")
-		return
-	}
-	prots := []int{syscall.PROT_WRITE | syscall.PROT_READ, syscall.PROT_READ}
-	for _, prot := range prots {
-		data, err = syscall.Mmap(int(f.Fd()), 0, int(info.Size()), prot, syscall.MAP_SHARED)
-		if err == nil {
-			break
-		}
-	}
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	return
-}
-
-func munmapFile(data []byte) (err error) {
-	err = syscall.Munmap(data)
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return
 	}
 	return
 }
