@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"sync"
@@ -348,26 +347,14 @@ func (bst *BkdSubTree) open(fp string) (err error) {
 }
 
 func getTreeList(dir, prefix string) (numList []int, err error) {
-	var d *os.File
-	var fns []string
+	var matches [][]string
 	var num int
-	d, err = os.Open(dir)
-	if err != nil {
-		err = errors.Wrap(err, "")
+	patt := fmt.Sprintf("^%s_(?P<num>[0-9]+)$", prefix)
+	if matches, err = FilepathGlob(dir, patt); err != nil {
 		return
 	}
-	fns, err = d.Readdirnames(0)
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	re := regexp.MustCompile(fmt.Sprintf("%s_(?P<num>[0-9]+)", prefix))
-	for _, fn := range fns {
-		subs := re.FindStringSubmatch(fn)
-		if subs == nil {
-			continue
-		}
-		num, err = strconv.Atoi(subs[1])
+	for _, match := range matches {
+		num, err = strconv.Atoi(match[1])
 		if err != nil {
 			err = errors.Wrap(err, "")
 			return
@@ -379,28 +366,7 @@ func getTreeList(dir, prefix string) (numList []int, err error) {
 }
 
 func rmTreeList(dir, prefix string) (err error) {
-	var d *os.File
-	var fns []string
-	d, err = os.Open(dir)
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	fns, err = d.Readdirnames(0)
-	if err != nil {
-		err = errors.Wrap(err, "")
-		return
-	}
-	re := regexp.MustCompile(fmt.Sprintf("%s_(?P<num>[0-9]+)", prefix))
-	for _, fn := range fns {
-		subs := re.FindStringSubmatch(fn)
-		if subs == nil {
-			continue
-		}
-		fp := filepath.Join(dir, fn)
-		if err = os.Remove(fp); err != nil {
-			err = errors.Wrap(err, "")
-		}
-	}
+	patt := fmt.Sprintf("^%s_(?P<num>[0-9]+)$", prefix)
+	err = FilepathGlobRm(dir, patt)
 	return
 }
