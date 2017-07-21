@@ -90,6 +90,7 @@ func FilepathGlob(dir, patt string) (matches [][]string, err error) {
 		err = nil
 		return
 	}
+	defer d.Close()
 	fns, err = d.Readdirnames(0)
 	if err != nil {
 		err = errors.Wrap(err, "")
