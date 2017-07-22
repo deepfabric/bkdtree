@@ -308,7 +308,7 @@ func TestBkdDestroy(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 	//Verify t0m has been removed
-	if err = bkd.Open(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err == nil {
+	if _, err = NewBkdTreeExt(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err == nil {
 		t.Fatalf("%s is still there", bkd.t0m.f.Name())
 	}
 }
@@ -326,8 +326,8 @@ func TestBkdOpenClose(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	bkd2 = &BkdTree{}
-	if err = bkd2.Open(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err != nil {
+	bkd2 = &BkdTree{dir: bkd.dir, prefix: bkd.prefix}
+	if err = bkd2.Open(bkd.bkdCap, 30*time.Minute); err != nil {
 		t.Fatalf("%+v", err)
 	}
 	if err = bkd2.Close(); err != nil {
@@ -426,7 +426,7 @@ FOR_LOOP:
 		if err := bkd.Close(); err != nil {
 			panic(err)
 		}
-		if err := bkd.Open(bkd.dir, bkd.prefix, bkd.bkdCap, 3*time.Second); err != nil {
+		if err := bkd.Open(bkd.bkdCap, 3*time.Second); err != nil {
 			panic(err)
 		}
 		time.Sleep(interval)

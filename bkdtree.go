@@ -230,8 +230,18 @@ func (bkd *BkdTree) close() (err error) {
 	return
 }
 
-//Open open and map all files. This is used for construct a BkdTree from existing data.
-func (bkd *BkdTree) Open(dir, prefix string, bkdCap int, cptInterval time.Duration) (err error) {
+//NewBkdTreeExt create a BKdTree based on exisiting files.
+func NewBkdTreeExt(dir, prefix string, bkdCap int, cptInterval time.Duration) (bkd *BkdTree, err error) {
+	bkd = &BkdTree{
+		dir:    dir,
+		prefix: prefix,
+	}
+	err = bkd.Open(bkdCap, cptInterval)
+	return
+}
+
+//Open open existing files. Assumes dir and prefix are already poluplated.
+func (bkd *BkdTree) Open(bkdCap int, cptInterval time.Duration) (err error) {
 	bkd.rwlock.Lock()
 	defer bkd.rwlock.Unlock()
 	if bkd.open {
@@ -239,13 +249,13 @@ func (bkd *BkdTree) Open(dir, prefix string, bkdCap int, cptInterval time.Durati
 		return
 	}
 
-	bkd.bkdCap, bkd.dir, bkd.prefix = bkdCap, dir, prefix
+	bkd.bkdCap = bkdCap
 	var nums []int
 	if err = bkd.openT0M(); err != nil {
 		return
 	}
 	bkd.NumPoints = int(bkd.t0m.meta.NumPoints)
-	if nums, err = getTreeList(dir, prefix); err != nil {
+	if nums, err = getTreeList(bkd.dir, bkd.prefix); err != nil {
 		return
 	}
 	for _, num := range nums {
