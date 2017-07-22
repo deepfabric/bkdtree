@@ -1,16 +1,12 @@
 package bkdtree
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/rand"
-	"path/filepath"
-	"testing"
-
-	"bytes"
-
-	"encoding/binary"
 	"os"
-
+	"testing"
 	"time"
 
 	"github.com/juju/testing/checkers"
@@ -196,8 +192,7 @@ func verifyBkdMeta(bkd *BkdTree) (err error) {
 		if bkd.trees[i].meta.NumPoints <= 0 {
 			continue
 		}
-		fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, i))
-		f, err = os.OpenFile(fp, os.O_RDONLY, 0)
+		f, err = os.OpenFile(bkd.TiPath(i), os.O_RDONLY, 0)
 		if err != nil {
 			return
 		}
@@ -326,8 +321,7 @@ func TestBkdOpenClose(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	bkd2 = &BkdTree{dir: bkd.dir, prefix: bkd.prefix}
-	if err = bkd2.Open(bkd.bkdCap, 30*time.Minute); err != nil {
+	if bkd2, err = NewBkdTreeExt(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err != nil {
 		t.Fatalf("%+v", err)
 	}
 	if err = bkd2.Close(); err != nil {

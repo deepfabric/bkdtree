@@ -188,8 +188,7 @@ func (bkd *BkdTree) Destroy() (err error) {
 	if err = rmTreeList(bkd.dir, bkd.prefix); err != nil {
 		return
 	}
-	fpT0M := filepath.Join(bkd.dir, fmt.Sprintf("%s_t0m", bkd.prefix))
-	if err = os.Remove(fpT0M); err != nil {
+	if err = os.Remove(bkd.T0mPath()); err != nil {
 		return
 	}
 	return
@@ -268,7 +267,7 @@ func (bkd *BkdTree) Open(bkdCap int, cptInterval time.Duration) (err error) {
 				bkd.trees = append(bkd.trees, kd)
 			}
 		}
-		fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, num))
+		fp := bkd.TiPath(num)
 		if err = bkd.trees[num].open(fp); err != nil {
 			return
 		}
@@ -288,9 +287,24 @@ func (bkd *BkdTree) GetCap() int {
 	return bkd.bkdCap
 }
 
-func (bkd *BkdTree) initT0M() (err error) {
+//T0mPath returns T0M path
+func (bkd *BkdTree) T0mPath() string {
 	fpT0M := filepath.Join(bkd.dir, fmt.Sprintf("%s_t0m", bkd.prefix))
-	fT0M, err1 := os.OpenFile(fpT0M, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	return fpT0M
+}
+
+//TiPath returns Ti path
+func (bkd *BkdTree) TiPath(i int) string {
+	fpTi := filepath.Join(bkd.dir, fmt.Sprintf("%s_t%d", bkd.prefix, i))
+	return fpTi
+}
+
+func (bkd *BkdTree) initT0M() (err error) {
+	if err = os.MkdirAll(bkd.dir, 0700); err != nil {
+		err = errors.Wrap(err, "")
+		return
+	}
+	fT0M, err1 := os.OpenFile(bkd.T0mPath(), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err1 != nil {
 		err = errors.Wrap(err1, "")
 		return
@@ -326,9 +340,8 @@ func (bkd *BkdTree) initT0M() (err error) {
 }
 
 func (bkd *BkdTree) openT0M() (err error) {
-	fpT0M := filepath.Join(bkd.dir, fmt.Sprintf("%s_t0m", bkd.prefix))
 	bkd.t0m = BkdSubTree{}
-	if err = bkd.t0m.open(fpT0M); err != nil {
+	if err = bkd.t0m.open(bkd.T0mPath()); err != nil {
 		return
 	}
 	bkd.t0mCap = (len(bkd.t0m.data) - KdTreeExtMetaSize) / int(bkd.t0m.meta.PointSize)
@@ -359,7 +372,7 @@ func (bst *BkdSubTree) open(fp string) (err error) {
 func getTreeList(dir, prefix string) (numList []int, err error) {
 	var matches [][]string
 	var num int
-	patt := fmt.Sprintf("^%s_(?P<num>[0-9]+)$", prefix)
+	patt := fmt.Sprintf("^%s_t(?P<num>[0-9]+)$", prefix)
 	if matches, err = FilepathGlob(dir, patt); err != nil {
 		return
 	}
@@ -376,7 +389,7 @@ func getTreeList(dir, prefix string) (numList []int, err error) {
 }
 
 func rmTreeList(dir, prefix string) (err error) {
-	patt := fmt.Sprintf("^%s_(?P<num>[0-9]+)$", prefix)
+	patt := fmt.Sprintf("^%s_t(?P<num>[0-9]+)$", prefix)
 	err = FilepathGlobRm(dir, patt)
 	return
 }

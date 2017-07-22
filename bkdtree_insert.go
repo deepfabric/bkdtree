@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"path/filepath"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -72,8 +71,8 @@ func (bkd *BkdTree) getMinCompactPos() (k int) {
 //compact T0M and trees[0:k+1] into tree[k]. Assumes write lock has been acquired.
 func (bkd *BkdTree) compactTo(k int) (err error) {
 	//extract all points from t0m and trees[0:k+1] into a file F
-	tmpFpK := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d.tmp", bkd.prefix, k))
-	fpK := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, k))
+	fpK := bkd.TiPath(k)
+	tmpFpK := fpK + ".tmp"
 	tmpFK, err := os.OpenFile(tmpFpK, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		err = errors.Wrap(err, "")
@@ -172,8 +171,7 @@ func (bkd *BkdTree) extractTi(dstF *os.File, idx int) (err error) {
 	if bkd.trees[idx].meta.NumPoints <= 0 {
 		return
 	}
-	fp := filepath.Join(bkd.dir, fmt.Sprintf("%s_%d", bkd.prefix, idx))
-	srcF, err := os.Open(fp)
+	srcF, err := os.Open(bkd.TiPath(idx))
 	if err != nil {
 		err = errors.Wrap(err, "")
 		return
