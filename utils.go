@@ -68,10 +68,12 @@ func FileMarshal(fp string, v interface{}) (err error) {
 		return
 	}
 	if f, err = os.OpenFile(fp, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600); err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	defer f.Close()
 	if count, err = f.Write(data); err != nil {
+		err = errors.Wrap(err, "")
 		return
 	}
 	if count != len(data) {
