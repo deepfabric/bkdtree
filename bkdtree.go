@@ -139,10 +139,9 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 }
 
 //NewBkdTree creates a BKDTree. This is used for construct a BkdTree from scratch. Existing files, if any, will be removed.
-func NewBkdTree(t0mCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree, err error) {
-	if t0mCap <= 0 || numDims <= 0 ||
-		(bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) ||
-		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
+func NewBkdTree(t0mCap, leafCap, intraCap, numDims, bytesPerDim int, dir, prefix string) (bkd *BkdTree, err error) {
+	if t0mCap <= 0 || leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 ||
+		numDims <= 0 || (bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) {
 		err = errors.Errorf("invalid parameter")
 		return
 	}

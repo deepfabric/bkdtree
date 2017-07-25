@@ -66,13 +66,13 @@ func TestBkdInsert(t *testing.T) {
 	t0mCap := 1000
 	treesCap := 5
 	bkdCap := t0mCap<<uint(treesCap) - 1
-	numDims := 2
-	bytesPerDim := 4
 	leafCap := 50
 	intraCap := 4
+	numDims := 2
+	bytesPerDim := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err := NewBkdTree(t0mCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	bkd, err := NewBkdTree(t0mCap, leafCap, intraCap, numDims, bytesPerDim, dir, prefix)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -110,13 +110,13 @@ func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
 	t0mCap := 1000
 	treesCap := 5
 	bkdCap := t0mCap<<uint(treesCap) - 1
-	numDims := 2
-	bytesPerDim := 4
 	leafCap := 50
 	intraCap := 4
+	numDims := 2
+	bytesPerDim := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err = NewBkdTree(t0mCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	bkd, err = NewBkdTree(t0mCap, leafCap, intraCap, numDims, bytesPerDim, dir, prefix)
 	if err != nil {
 		return
 	}
