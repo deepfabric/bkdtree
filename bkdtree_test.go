@@ -72,8 +72,7 @@ func TestBkdInsert(t *testing.T) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	cptInterval := 30 * time.Minute //use a large interval in order to avoid compact during test
-	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix, cptInterval)
+	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -120,8 +119,7 @@ func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	cptInterval := 30 * time.Minute //use a large interval in order to avoid compact during test
-	bkd, err = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix, cptInterval)
+	bkd, err = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if err != nil {
 		return
 	}
@@ -329,8 +327,6 @@ func TestBkdOpenClose(t *testing.T) {
 	}
 	//Compare two structs recursively and record the difference.
 	//TODO: How to ignore specific fields effciently?
-	bkd2.cptAbort = bkd.cptAbort
-	bkd2.cptDone = bkd.cptDone
 	bkd2.t0m.data, bkd.t0m.data = make([]byte, 0), make([]byte, 0)
 	for i := 0; i < len(bkd.trees); i++ {
 		bkd2.trees[i].data, bkd.trees[i].data = make([]byte, 0), make([]byte, 0)

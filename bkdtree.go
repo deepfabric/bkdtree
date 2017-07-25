@@ -80,11 +80,8 @@ type BkdTree struct {
 	NumPoints   int
 	t0m         BkdSubTree // T0M in the paper, in-memory buffer.
 	trees       []BkdSubTree
-	cptInterval time.Duration    //background compact interval
-	cptAbort    chan interface{} //notify background compact to abort
-	cptDone     chan interface{} //receive the notify that background compace has quited
-	rwlock      sync.RWMutex     //reader: Intersect, GetCap. writers: Insert, Erase, Open, Close, Destroy, Compact.
-	open        bool             //closed: allow Open, Close; open: allow all operations except Open.
+	rwlock      sync.RWMutex //reader: Intersect, GetCap. writers: Insert, Erase, Open, Close, Destroy, Compact.
+	open        bool         //closed: allow Open, Close; open: allow all operations except Open.
 }
 
 func (n *KdTreeExtIntraNode) Read(r io.Reader) (err error) {
@@ -144,7 +141,7 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 }
 
 //NewBkdTree creates a BKDTree. This is used for construct a BkdTree from scratch. Existing files, if any, will be removed.
-func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string, cptInterval time.Duration) (bkd *BkdTree, err error) {
+func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree, err error) {
 	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 ||
 		(bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) ||
 		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
@@ -162,10 +159,7 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 		dir:         dir,
 		prefix:      prefix,
 		//t0m is initialized later
-		trees:       make([]BkdSubTree, 0),
-		cptInterval: cptInterval,
-		cptAbort:    make(chan interface{}),
-		cptDone:     make(chan interface{}, 1),
+		trees: make([]BkdSubTree, 0),
 	}
 	if err = bkd.initT0M(); err != nil {
 		return
@@ -173,7 +167,6 @@ func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir
 	if err = rmTreeList(dir, prefix); err != nil {
 		return
 	}
-	go bkd.CompactMainloop()
 	bkd.open = true
 	return
 }
@@ -208,8 +201,6 @@ func (bkd *BkdTree) close() (err error) {
 		return
 	}
 	bkd.open = false
-	close(bkd.cptAbort)
-	<-bkd.cptDone
 
 	if err = FileMunmap(bkd.t0m.data); err != nil {
 		return
@@ -273,10 +264,6 @@ func (bkd *BkdTree) Open(bkdCap int, cptInterval time.Duration) (err error) {
 		}
 		bkd.NumPoints += int(bkd.trees[num].meta.NumPoints)
 	}
-	bkd.cptInterval = cptInterval
-	bkd.cptAbort = make(chan interface{})
-	bkd.cptDone = make(chan interface{}, 1)
-	go bkd.CompactMainloop()
 	bkd.open = true
 	return
 }

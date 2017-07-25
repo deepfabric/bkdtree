@@ -1,24 +1,5 @@
 package bkdtree
 
-import (
-	"time"
-)
-
-//CompactMainloop compacts subtrees regularly.
-func (bkd *BkdTree) CompactMainloop() {
-LABEL_FOR:
-	for {
-		timeout := time.After(bkd.cptInterval)
-		select {
-		case <-bkd.cptAbort:
-			bkd.cptDone <- "aborted"
-			break LABEL_FOR
-		case <-timeout:
-			_ = bkd.Compact()
-		}
-	}
-}
-
 //Compact comopact subtrees if necessary.
 func (bkd *BkdTree) Compact() (err error) {
 	bkd.rwlock.RLock()
