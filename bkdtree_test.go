@@ -72,7 +72,7 @@ func TestBkdInsert(t *testing.T) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	bkd, err := NewBkdTree(t0mCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -104,9 +104,6 @@ func TestBkdInsert(t *testing.T) {
 			quotient >>= 1
 		}
 	}
-	if err := bkd.Insert(points[bkdCap]); err == nil {
-		t.Fatalf("bkd.Insert shall fail if tree is full")
-	}
 }
 
 func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
@@ -119,7 +116,7 @@ func prepareBkdTree(maxVal uint64) (bkd *BkdTree, points []Point, err error) {
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err = NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	bkd, err = NewBkdTree(t0mCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if err != nil {
 		return
 	}
@@ -301,7 +298,7 @@ func TestBkdDestroy(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 	//Verify t0m has been removed
-	if _, err = NewBkdTreeExt(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err == nil {
+	if _, err = NewBkdTreeExt(bkd.dir, bkd.prefix); err == nil {
 		t.Fatalf("%s is still there", bkd.t0m.f.Name())
 	}
 }
@@ -319,7 +316,7 @@ func TestBkdOpenClose(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	if bkd2, err = NewBkdTreeExt(bkd.dir, bkd.prefix, bkd.bkdCap, 30*time.Minute); err != nil {
+	if bkd2, err = NewBkdTreeExt(bkd.dir, bkd.prefix); err != nil {
 		t.Fatalf("%+v", err)
 	}
 	if err = bkd2.Close(); err != nil {
@@ -416,7 +413,7 @@ FOR_LOOP:
 		if err := bkd.Close(); err != nil {
 			panic(err)
 		}
-		if err := bkd.Open(bkd.bkdCap, 3*time.Second); err != nil {
+		if err := bkd.Open(); err != nil {
 			panic(err)
 		}
 		time.Sleep(interval)

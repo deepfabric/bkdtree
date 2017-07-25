@@ -6,15 +6,13 @@ import (
 
 func BenchmarkBkdInsert(b *testing.B) {
 	t0mCap := 1000
-	treesCap := 20
-	bkdCap := t0mCap<<uint(treesCap) - 1
 	numDims := 2
 	bytesPerDim := 4
 	leafCap := 50
 	intraCap := 4
 	dir := "/tmp"
 	prefix := "bkd"
-	bkd, err := NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
+	bkd, err := NewBkdTree(t0mCap, numDims, bytesPerDim, leafCap, intraCap, dir, prefix)
 	if err != nil {
 		b.Fatalf("%+v", err)
 	}

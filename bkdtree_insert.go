@@ -19,9 +19,6 @@ func (bkd *BkdTree) Insert(point Point) (err error) {
 		return
 	}
 
-	if bkd.NumPoints >= bkd.bkdCap {
-		return errors.New("BKDTree is full")
-	}
 	//insert into in-memory buffer t0m. If t0m is not full, return.
 	bkd.insertT0M(point)
 	bkd.NumPoints++

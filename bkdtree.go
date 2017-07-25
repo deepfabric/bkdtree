@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -68,7 +67,6 @@ type BkdSubTree struct {
 
 //BkdTree is a BKD tree
 type BkdTree struct {
-	bkdCap      int // N in the paper
 	t0mCap      int // M in the paper, the capacity of in-memory buffer
 	leafCap     int // limit of points a leaf node can hold
 	intraCap    int // limit of children of a intra node can hold
@@ -141,15 +139,14 @@ func (n *KdTreeExtIntraNode) Write(w io.Writer) (err error) {
 }
 
 //NewBkdTree creates a BKDTree. This is used for construct a BkdTree from scratch. Existing files, if any, will be removed.
-func NewBkdTree(t0mCap, bkdCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree, err error) {
-	if t0mCap <= 0 || bkdCap < t0mCap || numDims <= 0 ||
+func NewBkdTree(t0mCap, numDims, bytesPerDim, leafCap, intraCap int, dir, prefix string) (bkd *BkdTree, err error) {
+	if t0mCap <= 0 || numDims <= 0 ||
 		(bytesPerDim != 1 && bytesPerDim != 2 && bytesPerDim != 4 && bytesPerDim != 8) ||
 		leafCap <= 0 || leafCap >= int(^uint16(0)) || intraCap <= 2 || intraCap >= int(^uint16(0)) {
 		err = errors.Errorf("invalid parameter")
 		return
 	}
 	bkd = &BkdTree{
-		bkdCap:      bkdCap,
 		t0mCap:      t0mCap,
 		leafCap:     leafCap,
 		intraCap:    intraCap,
@@ -221,17 +218,17 @@ func (bkd *BkdTree) close() (err error) {
 }
 
 //NewBkdTreeExt create a BKdTree based on exisiting files.
-func NewBkdTreeExt(dir, prefix string, bkdCap int, cptInterval time.Duration) (bkd *BkdTree, err error) {
+func NewBkdTreeExt(dir, prefix string) (bkd *BkdTree, err error) {
 	bkd = &BkdTree{
 		dir:    dir,
 		prefix: prefix,
 	}
-	err = bkd.Open(bkdCap, cptInterval)
+	err = bkd.Open()
 	return
 }
 
 //Open open existing files. Assumes dir and prefix are already poluplated.
-func (bkd *BkdTree) Open(bkdCap int, cptInterval time.Duration) (err error) {
+func (bkd *BkdTree) Open() (err error) {
 	bkd.rwlock.Lock()
 	defer bkd.rwlock.Unlock()
 	if bkd.open {
@@ -239,7 +236,6 @@ func (bkd *BkdTree) Open(bkdCap int, cptInterval time.Duration) (err error) {
 		return
 	}
 
-	bkd.bkdCap = bkdCap
 	var nums []int
 	if err = bkd.openT0M(); err != nil {
 		return
@@ -266,12 +262,6 @@ func (bkd *BkdTree) Open(bkdCap int, cptInterval time.Duration) (err error) {
 	}
 	bkd.open = true
 	return
-}
-
-func (bkd *BkdTree) GetCap() int {
-	bkd.rwlock.RLock()
-	defer bkd.rwlock.RUnlock()
-	return bkd.bkdCap
 }
 
 //T0mPath returns T0M path
