@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"sort"
 
+	datastructures "github.com/deepfabric/go-datastructures"
 	"github.com/keegancsmith/nth"
 )
 
@@ -11,12 +12,6 @@ type Point struct {
 	Vals     []uint64
 	UserData uint64
 }
-
-// PointMinHeap is a min-heap of points.
-type PointMinHeap []Point
-
-// PointMaxHeap is a max-heap of points.
-type PointMaxHeap []Point
 
 type PointArray interface {
 	sort.Interface
@@ -39,6 +34,17 @@ type PointArrayExt struct {
 	bytesPerDim int
 	numDims     int
 	pointSize   int
+}
+
+// Compare is part of datastructures.Comparable interface
+func (p Point) Compare(other datastructures.Comparable) int {
+	rhs := other.(Point)
+	for dim := 0; dim < len(p.Vals); dim++ {
+		if p.Vals[dim] != rhs.Vals[dim] {
+			return int(p.Vals[dim] - rhs.Vals[dim])
+		}
+	}
+	return int(p.UserData - rhs.UserData)
 }
 
 func (p *Point) Inside(lowPoint, highPoint Point) (isInside bool) {
@@ -109,68 +115,6 @@ func (p *Point) Decode(b []byte, numDims int, bytesPerDim int) {
 	}
 	p.UserData = binary.BigEndian.Uint64(b[numDims*bytesPerDim:])
 	return
-}
-
-// Len is part of sort.Interface.
-func (s PointMinHeap) Len() int {
-	return len(s)
-}
-
-// Swap is part of sort.Interface.
-func (s PointMinHeap) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-// Less is part of sort.Interface.
-func (s PointMinHeap) Less(i, j int) bool {
-	return s[i].LessThan(s[j])
-}
-
-// Push is part of heap.Interface.
-func (s *PointMinHeap) Push(x interface{}) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
-	*s = append(*s, x.(Point))
-}
-
-// Pop is part of heap.Interface.
-func (s *PointMinHeap) Pop() interface{} {
-	old := *s
-	n := len(old)
-	x := old[n-1]
-	*s = old[0 : n-1]
-	return x
-}
-
-// Len is part of sort.Interface.
-func (s PointMaxHeap) Len() int {
-	return len(s)
-}
-
-// Swap is part of sort.Interface.
-func (s PointMaxHeap) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-// Less is part of sort.Interface.
-func (s PointMaxHeap) Less(i, j int) bool {
-	return s[j].LessThan(s[i])
-}
-
-// Push is part of heap.Interface.
-func (s *PointMaxHeap) Push(x interface{}) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
-	*s = append(*s, x.(Point))
-}
-
-// Pop is part of heap.Interface.
-func (s *PointMaxHeap) Pop() interface{} {
-	old := *s
-	n := len(old)
-	x := old[n-1]
-	*s = old[0 : n-1]
-	return x
 }
 
 // Len is part of sort.Interface.

@@ -2,15 +2,9 @@ package bkdtree
 
 import (
 	"bytes"
-	"container/heap"
-	"fmt"
 	"math/rand"
 	"os"
 	"testing"
-
-	"sort"
-
-	"github.com/juju/testing/checkers"
 )
 
 type CaseInside struct {
@@ -99,72 +93,6 @@ func NewRandPoints(numDims int, maxVal uint64, size int) (points []Point) {
 		points = append(points, point)
 	}
 	return
-}
-
-func TestPointHeap(t *testing.T) {
-	numDims := 3
-	maxVal := uint64(100)
-	size := 10000
-	points := NewRandPoints(numDims, maxVal, size)
-	/*There are several ways to build a heap from array:
-
-	s := PointMinHeap(points)
-	h := &s
-	heap.Init(h)
-
-	h := &PointMinHeap{}
-	*h = points
-	heap.Init(h)
-
-	s := &points
-	h := (*PointMinHeap)(s)
-	heap.Init(h)
-
-	h := &PointMinHeap{}
-	for i := 0; i < len(points); i++ {
-		heap.Push(h, points[i])
-	}
-	*/
-	h := &PointMinHeap{}
-	*h = points
-	heap.Init(h)
-	var prevPoint *Point
-	var smallestN1 []Point
-	var smallestN2 []Point
-	N := 1000
-	for h.Len() > 0 {
-		p := heap.Pop(h).(Point)
-		if prevPoint != nil && p.LessThan(*prevPoint) {
-			t.Fatalf("incorrect order of %v %v", *prevPoint, p)
-		}
-		prevPoint = &p
-		if len(smallestN1) < N {
-			smallestN1 = append(smallestN1, p)
-		}
-	}
-
-	/*Inspired by https://stackoverflow.com/questions/5845810/constant-size-priority-queue-insert-first-or-delete-first
-	h2 is a max-heap which stores the N smallest points found so far. The top (largest) is at index zero.
-	*/
-	h2 := &PointMaxHeap{}
-	heap.Init(h2)
-	for i := 0; i < len(points); i++ {
-		if len(*h2) < N {
-			h2.Push(points[i])
-		} else if points[i].LessThan((*h2)[0]) {
-			(*h2)[0] = points[i]
-			heap.Fix(h2, 0)
-		}
-	}
-	s := PointMinHeap(*h2)
-	sort.Sort(&s)
-	smallestN2 = s
-	isEqual, err := checkers.DeepEqual(smallestN1, smallestN2)
-	if !isEqual {
-		fmt.Printf("smallestN1: %+v\n", smallestN1)
-		fmt.Printf("smallestN2: %+v\n", smallestN2)
-		t.Fatalf("smallestN1 and smallestN2 %+v", err)
-	}
 }
 
 func TestPointArrayExt_ToMem(t *testing.T) {
