@@ -65,8 +65,16 @@ func (bkd *BkdTree) intersectNode(visitor IntersectVisitor, data []byte,
 	if err != nil {
 		return
 	}
-	for _, child := range node.Children {
+	lowVal := lowP.Vals[node.SplitDim]
+	highVal := highP.Vals[node.SplitDim]
+	for i, child := range node.Children {
 		if child.NumPoints <= 0 {
+			continue
+		}
+		if i < int(node.NumStrips)-1 && node.SplitValues[i] < lowVal {
+			continue
+		}
+		if i != 0 && node.SplitValues[i-1] > highVal {
 			continue
 		}
 		if child.Offset < meta.PointsOffEnd {
