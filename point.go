@@ -10,7 +10,7 @@ import (
 
 type Point struct {
 	Vals     []uint64
-	UserData uint64
+	UserData interface{}
 }
 
 type PointArray interface {
@@ -44,7 +44,7 @@ func (p Point) Compare(other datastructures.Comparable) int {
 			return int(p.Vals[dim] - rhs.Vals[dim])
 		}
 	}
-	return int(p.UserData - rhs.UserData)
+	return int(p.UserData.(uint64) - rhs.UserData.(uint64) )
 }
 
 func (p *Point) Inside(lowPoint, highPoint Point) (isInside bool) {
@@ -63,13 +63,15 @@ func (p Point) LessThan(rhs Point) (res bool) {
 			return p.Vals[dim] < rhs.Vals[dim]
 		}
 	}
-	return p.UserData < rhs.UserData
+
+	return p.UserData.(uint64) < rhs.UserData.(uint64)
 }
 
 func (p *Point) Equal(rhs Point) (res bool) {
+	/* un punto es igual al otro independeintemente del userdata
 	if p.UserData != rhs.UserData || len(p.Vals) != len(rhs.Vals) {
 		return
-	}
+	}*/
 	for dim := 0; dim < len(p.Vals); dim++ {
 		if p.Vals[dim] != rhs.Vals[dim] {
 			return
@@ -95,7 +97,7 @@ func (p *Point) Encode(b []byte, bytesPerDim int) {
 			binary.BigEndian.PutUint64(b[8*i:], p.Vals[i])
 		}
 	}
-	binary.BigEndian.PutUint64(b[numDims*bytesPerDim:], p.UserData)
+	binary.BigEndian.PutUint64(b[numDims*bytesPerDim:], p.UserData.(uint64))
 	return
 }
 

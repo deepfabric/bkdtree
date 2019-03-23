@@ -131,8 +131,8 @@ func areSmaePoints(lhs, rhs []Point, numDims int) (res bool) {
 	mapLhs := make(map[uint64]Point, numPoints)
 	mapRhs := make(map[uint64]Point, numPoints)
 	for i := 0; i < numPoints; i++ {
-		mapLhs[lhs[i].UserData] = lhs[i]
-		mapRhs[rhs[i].UserData] = rhs[i]
+		mapLhs[lhs[i].UserData.(uint64)] = lhs[i]
+		mapRhs[rhs[i].UserData.(uint64)] = rhs[i]
 	}
 	for k, v := range mapLhs {
 		v2, found := mapRhs[k]
