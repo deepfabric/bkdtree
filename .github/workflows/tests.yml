@@ -7,13 +7,10 @@ on:
 jobs:
   tests:
     name: tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
     - name: Ensure workspace ownership
       run: echo "chown -R $USER $GITHUB_WORKSPACE" && sudo chown -R $USER $GITHUB_WORKSPACE
 
     - name: Check out code
-      uses: actions/checkout@v2
-
-    - name: Show working copy revision
-      run: git branch --show-current && git rev-parse HEAD
+      uses: actions/checkout@v4
