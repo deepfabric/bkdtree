@@ -13,4 +13,4 @@ jobs:
       run: echo "chown -R $USER $GITHUB_WORKSPACE" && sudo chown -R $USER $GITHUB_WORKSPACE
 
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
