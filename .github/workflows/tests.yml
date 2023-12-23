@@ -1,0 +1,19 @@
+name: tests
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, edited ]
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Ensure workspace ownership
+      run: echo "chown -R $USER $GITHUB_WORKSPACE" && sudo chown -R $USER $GITHUB_WORKSPACE
+
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Show working copy revision
+      run: git branch --show-current && git rev-parse HEAD
