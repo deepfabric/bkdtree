@@ -1,0 +1,56 @@
+name: release
+
+on:
+  schedule:
+    - cron: '0,15,30,45 * * * *'  # schedule nightly build daily at midnight UTC
+  push:
+    tags:
+      - "v*.*.*"                  # normal release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Ensure workspace ownership
+      run: echo "chown -R $USER $GITHUB_WORKSPACE" && sudo chown -R $USER $GITHUB_WORKSPACE
+
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Prepare release body
+      run: |
+        if [[ ${{ github.ref }} =~ ^refs/tags/v(.*) ]]; then
+          RELEASE_TAG=v${BASH_REMATCH[1]}
+          PRERELEASE=false
+        else
+          RELEASE_TAG=nightly
+          PRERELEASE=true
+        fi
+        echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+        echo "PRERELEASE=$PRERELEASE" >> $GITHUB_ENV
+        RELEASE_DATETIME=$(date --rfc-3339=seconds)
+        cat <<EOF > release_template.md
+        Release $RELEASE_TAG created from $GITHUB_SHA at $RELEASE_DATETIME
+        EOF
+        envsubst < release_template.md > release_body.md
+
+    - name: Build source tarball
+      run: git archive --format=tar HEAD | gzip > archive.tgz
+
+    - name: Remove existing mutalbe tag "nightly"
+      # https://github.com/softprops/action-gh-release/issues/171
+      run: git push origin :refs/tags/nightly || true
+      # https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution
+      if: ${{ env.RELEASE_TAG }} == "nightly"
+
+    - name: Create or overwrite a releae
+      # https://github.com/actions/upload-release-asset has been replaced by https://github.com/softprops/action-gh-release
+      uses: softprops/action-gh-release@v1
+      with:
+        token: ${{ secrets.MY_GITHUB_TOKEN }}  # Use the secret as an environment variable
+        prerelease: ${{ env.PRE_RELEASE }}
+        tag_name: ${{ env.RELEASE_TAG }}
+        # The body field does not support environment variable substitution directly.
+        body_path: release_body.md
+        files: |
+          *.tgz
