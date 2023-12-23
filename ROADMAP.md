@@ -1,6 +1,6 @@
 # Roadmap
 
-This document defines the roadmap for BKD tree development.
+This document describes the roadmap for BKD tree development.
 
 #### KD tree (memory)
 - [D] build - Kdtree in mem
