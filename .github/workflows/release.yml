@@ -37,11 +37,10 @@ jobs:
     - name: Build source tarball
       run: git archive --format=tar HEAD | gzip > archive.tgz
 
-    - name: Remove existing mutalbe tag "nightly"
+    - name: Try remove mutalbe tag
       # https://github.com/softprops/action-gh-release/issues/171
       run: |
-        if [[ $RELEASE_TAG =~ ^v(.*) ]]; then
-        else
+        if [[ $RELEASE_TAG != v* ]]; then
           echo "try removing mutalbe tag $RELEASE_TAG"
           git push origin :refs/tags/$RELEASE_TAG || true
         fi
