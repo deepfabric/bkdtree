@@ -37,12 +37,12 @@ jobs:
     - name: Build source tarball
       run: git archive --format=tar HEAD | gzip > archive.tgz
 
-    - name: Try remove mutalbe tag
+    - name: Remove the tag if it's mutable, let action-gh-release create it.
       # https://github.com/softprops/action-gh-release/issues/171
       run: |
         if [[ $RELEASE_TAG != v* ]]; then
           echo "try removing mutalbe tag $RELEASE_TAG"
-          git push origin :refs/tags/$RELEASE_TAG || true
+          git push origin :refs/tags/$RELEASE_TAG
         fi
 
     - name: Create or overwrite a release
