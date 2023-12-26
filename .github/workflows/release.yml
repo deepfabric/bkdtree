@@ -50,7 +50,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         token: ${{ secrets.MY_GITHUB_TOKEN }}  # Use the secret as an environment variable
-        prerelease: ${{ env.PRE_RELEASE }}
+        prerelease: ${{ env.PRERELEASE }}
         tag_name: ${{ env.RELEASE_TAG }}
         # The body field does not support environment variable substitution directly.
         body_path: release_body.md
