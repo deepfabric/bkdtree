@@ -39,11 +39,14 @@ jobs:
 
     - name: Remove existing mutalbe tag "nightly"
       # https://github.com/softprops/action-gh-release/issues/171
-      run: git push origin :refs/tags/nightly || true
-      # https://docs.github.com/en/actions/using-jobs/using-conditions-to-control-job-execution
-      if: ${{ env.RELEASE_TAG }} == "nightly"
+      run: |
+        if [[ $RELEASE_TAG =~ ^v(.*) ]]; then
+        else
+          echo "try removing mutalbe tag $RELEASE_TAG"
+          git push origin :refs/tags/$RELEASE_TAG || true
+        fi
 
-    - name: Create or overwrite a releae
+    - name: Create or overwrite a release
       # https://github.com/actions/upload-release-asset has been replaced by https://github.com/softprops/action-gh-release
       uses: softprops/action-gh-release@v1
       with:
